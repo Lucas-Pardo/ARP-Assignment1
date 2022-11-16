@@ -1,5 +1,8 @@
 #include "./../include/inspection_utilities.h"
 
+//TODO add effects to each button pressed
+//TODO implement motion of EE given the state of motors
+
 int main(int argc, char const *argv[])
 {
     // Utility variable to avoid trigger resize event on launch

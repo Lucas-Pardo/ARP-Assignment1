@@ -1,5 +1,7 @@
 #include "./../include/command_utilities.h"
 
+//TODO add effects to each button pressed (calls to motors)
+
 int main(int argc, char const *argv[])
 {
     // Utility variable to avoid trigger resize event on launch

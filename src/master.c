@@ -25,13 +25,21 @@ int spawn(const char * program, char * arg_list[]) {
   }
 }
 
+//TODO write errors to a log file in ./logs
+
 int main() {
 
   char * arg_list_command[] = { "/usr/bin/konsole", "-e", "./bin/command", NULL };
   char * arg_list_inspection[] = { "/usr/bin/konsole", "-e", "./bin/inspection", NULL };
+  //TODO args for motorx
+  //TODO args for motorz
+  //TODO args for watchdog
 
   pid_t pid_cmd = spawn("/usr/bin/konsole", arg_list_command);
   pid_t pid_insp = spawn("/usr/bin/konsole", arg_list_inspection);
+  //TODO spawn for motorx
+  //TODO spawn for motorz
+  //TODO spawn for watchdog
 
   int status;
   waitpid(pid_cmd, &status, 0);
