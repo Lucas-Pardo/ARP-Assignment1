@@ -31,18 +31,19 @@ int main() {
 
   char * arg_list_command[] = { "/usr/bin/konsole", "-e", "./bin/command", NULL };
   char * arg_list_inspection[] = { "/usr/bin/konsole", "-e", "./bin/inspection", NULL };
-  //TODO args for motorx
-  //TODO args for motorz
+  char * arg_list_motorx[] = { "/usr/bin/konsole", "-e", "./bin/motorx", NULL };
+  char * arg_list_motorz[] = { "/usr/bin/konsole", "-e", "./bin/motorz", NULL };
   //TODO args for watchdog
 
   pid_t pid_cmd = spawn("/usr/bin/konsole", arg_list_command);
   pid_t pid_insp = spawn("/usr/bin/konsole", arg_list_inspection);
-  //TODO spawn for motorx
-  //TODO spawn for motorz
+  pid_t pid_mx = spawn("/usr/bin/konsole", arg_list_motorx);
+  pid_t pid_mz = spawn("/usr/bin/konsole", arg_list_motorz);
   //TODO spawn for watchdog
 
   int status;
   waitpid(pid_cmd, &status, 0);
+  waitpid(pid_insp, &status, 0);
   waitpid(pid_insp, &status, 0);
   
   printf ("Main program exiting with status %d\n", status);
