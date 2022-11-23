@@ -1,4 +1,12 @@
 #include "./../include/inspection_utilities.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <unistd.h>
+#include <sys/wait.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <sys/select.h>
 
 //TODO add effects to each button pressed
 //TODO implement motion of EE given the state of motors
@@ -13,6 +21,9 @@ int main(int argc, char const *argv[])
 
     // Initialize User Interface 
     init_console_ui();
+
+    // Stop msg:
+    
 
     // Infinite loop
     while(TRUE)
@@ -54,6 +65,8 @@ int main(int argc, char const *argv[])
                         mvaddch(LINES - 1, j, ' ');
                     }
                 }
+
+                // Send stop signal to both motors:
             }
         }
         

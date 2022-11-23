@@ -8,6 +8,7 @@
 #include <sys/select.h>
 
 #define VEL_INC 0.2
+#define MSG_SIZE 2*sizeof(char)
 
 
 int main(int argc, char **argv){
@@ -40,6 +41,10 @@ int main(int argc, char **argv){
     // Current velocity:
     float v = 0;
 
+    // Buffer for messages:
+    char buf[10];
+    int vel;
+
     // Main loop:
     while(1){
         // Create the set of read fds:
@@ -55,11 +60,22 @@ int main(int argc, char **argv){
         if (retval < 0) perror("Error in select");
         else if (retval) {
             if (FD_ISSET(fd_cmd, &rfds)){
-                // TODO cmd things
+                if (read(fd_cmd, buf, MSG_SIZE) < 0) perror("Error reading from cmd-mx fifo");
+                sscanf(buf, "%d", vel);
+                if (vel == 0) {
+                    v = 0;
+                } else {
+                    v += vel * VEL_INC;
+                }
             }
             else {
-                // TODO ins things
+                if (read(fd_ins, buf, MSG_SIZE) < 0) perror("Error reading from ins-mx fifo");
+                v = 0;
             }
+
+            // Send current velocity to inspection console:
+            int length = snprintf(buf, 10, "%f", v);
+            if (write(fd_ins, buf, length + 1) < 0) perror("Error writing to ins-mx fifo");
             
             // Reset inactivity timer:
             in_time = 0;
