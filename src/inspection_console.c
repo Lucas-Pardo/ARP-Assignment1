@@ -58,23 +58,23 @@ int main(int argc, char const *argv[])
         }
         
         // To be commented in final version...
-        switch (cmd)
-        {
-            case KEY_LEFT:
-                ee_x--;
-                break;
-            case KEY_RIGHT:
-                ee_x++;
-                break;
-            case KEY_UP:
-                ee_y--;
-                break;
-            case KEY_DOWN:
-                ee_y++;
-                break;
-            default:
-                break;
-        }
+        // switch (cmd)
+        // {
+        //     case KEY_LEFT:
+        //         ee_x--;
+        //         break;
+        //     case KEY_RIGHT:
+        //         ee_x++;
+        //         break;
+        //     case KEY_UP:
+        //         ee_y--;
+        //         break;
+        //     case KEY_DOWN:
+        //         ee_y++;
+        //         break;
+        //     default:
+        //         break;
+        // }
         
         // Update UI
         update_console_ui(&ee_x, &ee_y);

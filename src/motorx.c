@@ -14,14 +14,19 @@ int main(int argc, char **argv){
     // Paths for fifos:
     char * cmd_fifo = "./tmp/cmd_mx";
     char * ins_fifo = "./tmp/ins_mx";
+    char * watch_fifo = "./tmp/watch_mx";
 
     // Create fifos:
-    if (mkfifo(cmd_fifo, S_IRUSR | S_IRGRP | S_IROTH) < 0) perror("Error while creating cmd fifo");
-    if (mkfifo(ins_fifo, S_IRUSR | S_IRGRP | S_IROTH) < 0) perror("Error while creating ins fifo");
-
+    if (mkfifo(cmd_fifo, S_IRUSR | S_IRGRP | S_IROTH) < 0) perror("Error while creating cmd-mx fifo");
+    if (mkfifo(ins_fifo, S_IRUSR | S_IRGRP | S_IROTH) < 0) perror("Error while creating ins-mx fifo");
+    if (mkfifo(watch_fifo, S_IRUSR | S_IRGRP | S_IROTH) < 0) perror("Error while creating watch-mx fifo");
     // Open fifos:
     int fd_cmd = open(cmd_fifo, O_RDONLY);
+    if (fd_cmd < 0) perror("Error opening cmd-mx fifo");
     int fd_ins = open(ins_fifo, O_RDONLY);
+    if (fd_ins < 0) perror("Error opening ins-mx fifo");
+    int fd_watch = open(watch_fifo, O_RDONLY);
+    if (fd_watch < 0) perror("Error opening watch-mx fifo");
 
     // Variables for the select():
     fd_set rfds;
@@ -55,6 +60,9 @@ int main(int argc, char **argv){
             else {
                 // TODO ins things
             }
+            
+            // Reset inactivity timer:
+            in_time = 0;
         } 
         else
         {
