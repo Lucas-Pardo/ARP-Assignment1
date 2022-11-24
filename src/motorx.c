@@ -8,7 +8,11 @@
 #include <sys/select.h>
 
 #define VEL_INC 0.2
-#define MSG_SIZE 2*sizeof(char)
+#define SIZE_STOP sizeof(char)
+#define RTIME 20
+
+const char stop[] = "0";
+const char inc[] = "1";
 
 
 int main(int argc, char **argv){
@@ -18,15 +22,15 @@ int main(int argc, char **argv){
     char * watch_fifo = "./tmp/watch_mx";
 
     // Create fifos:
-    if (mkfifo(cmd_fifo, S_IRUSR | S_IRGRP | S_IROTH) < 0) perror("Error while creating cmd-mx fifo");
-    if (mkfifo(ins_fifo, S_IRUSR | S_IRGRP | S_IROTH) < 0) perror("Error while creating ins-mx fifo");
-    if (mkfifo(watch_fifo, S_IRUSR | S_IRGRP | S_IROTH) < 0) perror("Error while creating watch-mx fifo");
+    if (mkfifo(cmd_fifo, S_IRUSR) < 0) perror("Error while creating cmd-mx fifo");
+    if (mkfifo(ins_fifo, S_IRUSR) < 0) perror("Error while creating ins-mx fifo");
+    if (mkfifo(watch_fifo, S_IWUSR) < 0) perror("Error while creating watch-mx fifo");
     // Open fifos:
     int fd_cmd = open(cmd_fifo, O_RDONLY);
     if (fd_cmd < 0) perror("Error opening cmd-mx fifo");
     int fd_ins = open(ins_fifo, O_RDONLY);
     if (fd_ins < 0) perror("Error opening ins-mx fifo");
-    int fd_watch = open(watch_fifo, O_RDONLY);
+    int fd_watch = open(watch_fifo, O_WRONLY);
     if (fd_watch < 0) perror("Error opening watch-mx fifo");
 
     // Variables for the select():
@@ -60,7 +64,7 @@ int main(int argc, char **argv){
         if (retval < 0) perror("Error in select");
         else if (retval) {
             if (FD_ISSET(fd_cmd, &rfds)){
-                if (read(fd_cmd, buf, MSG_SIZE) < 0) perror("Error reading from cmd-mx fifo");
+                if (read(fd_cmd, buf, 10*sizeof(char)) < 0) perror("Error reading from cmd-mx fifo");
                 sscanf(buf, "%d", vel);
                 if (vel == 0) {
                     v = 0;
@@ -69,7 +73,7 @@ int main(int argc, char **argv){
                 }
             }
             else {
-                if (read(fd_ins, buf, MSG_SIZE) < 0) perror("Error reading from ins-mx fifo");
+                if (read(fd_ins, buf, 10*sizeof(char)) < 0) perror("Error reading from ins-mx fifo");
                 v = 0;
             }
 
@@ -79,10 +83,16 @@ int main(int argc, char **argv){
             
             // Reset inactivity timer:
             in_time = 0;
+            if (write(fd_watch, stop, SIZE_STOP) != SIZE_STOP) perror("Error writing in mx-watch fifo");
+
         } 
         else
         {
             in_time += timeout;
+        }
+
+        if (in_time > RTIME){
+            if (write(fd_watch, inc, SIZE_STOP) != SIZE_STOP) perror("Error writing in mx-watch fifo");
         }
         
     }

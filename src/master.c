@@ -11,7 +11,7 @@ int spawn(const char * program, char * arg_list[]) {
 
   if(child_pid < 0) {
     perror("Error while forking...");
-    return 1;
+    return -1;
   }
 
   else if(child_pid != 0) {
@@ -21,7 +21,7 @@ int spawn(const char * program, char * arg_list[]) {
   else {
     if(execvp (program, arg_list) == 0);
     perror("Exec failed");
-    return 1;
+    return -1;
   }
 }
 
@@ -35,6 +35,7 @@ int main() {
   char * arg_list_motorz[] = { "/usr/bin/konsole", "-e", "./bin/motorz", NULL };
   //TODO args for watchdog
 
+  // TODO catch errors from spawn calls
   pid_t pid_cmd = spawn("/usr/bin/konsole", arg_list_command);
   pid_t pid_insp = spawn("/usr/bin/konsole", arg_list_inspection);
   pid_t pid_mx = spawn("/usr/bin/konsole", arg_list_motorx);

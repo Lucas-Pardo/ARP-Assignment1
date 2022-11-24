@@ -23,16 +23,16 @@ int main(int argc, char const *argv[])
     char * watch_fifo = "./tmp/watch_cmd";
 
     // Create fifos:
-    if (mkfifo(mx_fifo, S_IRUSR | S_IRGRP | S_IROTH) < 0) perror("Error while creating cmd-mx fifo");
-    if (mkfifo(mz_fifo, S_IRUSR | S_IRGRP | S_IROTH) < 0) perror("Error while creating cmd-mz fifo");
-    if (mkfifo(watch_fifo, S_IRUSR | S_IRGRP | S_IROTH) < 0) perror("Error while creating watch-cmd fifo");
+    if (mkfifo(mx_fifo, S_IWUSR) < 0) perror("Error while creating cmd-mx fifo");
+    if (mkfifo(mz_fifo, S_IWUSR) < 0) perror("Error while creating cmd-mz fifo");
+    if (mkfifo(watch_fifo, S_IWUSR) < 0) perror("Error while creating watch-cmd fifo");
 
     // Open fifos:
-    int fd_mx = open(mx_fifo, O_RDONLY);
+    int fd_mx = open(mx_fifo, O_WRONLY);
     if (fd_mx < 0) perror("Error opening cmd-mx fifo");
-    int fd_mz = open(mz_fifo, O_RDONLY);
+    int fd_mz = open(mz_fifo, O_WRONLY);
     if (fd_mz < 0) perror("Error opening cmd-mz fifo");
-    int fd_watch = open(watch_fifo, O_RDONLY);
+    int fd_watch = open(watch_fifo, O_WRONLY);
     if (fd_watch < 0) perror("Error opening watch-cmd fifo");
 
     // Buffers for fifo communication:
@@ -64,10 +64,6 @@ int main(int argc, char const *argv[])
         }
         // Else if mouse has been pressed
         else if(cmd == KEY_MOUSE) {
-
-            // Reset inactivity timer:
-            in_time = 0;
-            if (write(fd_watch, stop, s_stop) != s_stop) perror("Error writing in cmd-watch fifo");
 
             // Check which button has been pressed...
             if(getmouse(&event) == OK) {
@@ -137,6 +133,10 @@ int main(int argc, char const *argv[])
                         mvaddch(LINES - 1, j, ' ');
                     }
                 }
+
+                // Reset inactivity timer:
+                in_time = 0;
+                if (write(fd_watch, stop, s_stop) != s_stop) perror("Error writing in cmd-watch fifo");
             }
         } else {
             sleep(timeout);
