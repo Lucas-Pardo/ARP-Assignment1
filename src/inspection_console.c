@@ -8,15 +8,15 @@
 #include <fcntl.h>
 #include <sys/select.h>
 
-#define SIZE_STOP sizeof(char)
-#define RTIME 20
+#define SIZE_MSG 2*sizeof(char)+1
+
+// TODO write status changes to a log file in ./logs
 
 // End-effector coordinates
 float ee_x, ee_y;
 float v_x, v_y;
 
-const char stop[] = "0";
-const char inc[] = "1";
+const char stop[] = "00";
 
 int sr_function(int fd_mx, int fd_mz, int r) {
     if (r) {
@@ -25,11 +25,11 @@ int sr_function(int fd_mx, int fd_mz, int r) {
     }
     v_x = 0;
     v_y = 0;
-    if (write(fd_mx, stop, SIZE_STOP) != SIZE_STOP) {
+    if (write(fd_mx, stop, SIZE_MSG) != SIZE_MSG) {
         perror("Error writing in ins-mx fifo");
         return -1;
     } 
-    if (write(fd_mz, stop, SIZE_STOP) != SIZE_STOP) {
+    if (write(fd_mz, stop, SIZE_MSG) != SIZE_MSG) {
         perror("Error writing in ins-mz fifo");
         return -1;
     }
@@ -50,25 +50,17 @@ int main(int argc, char const *argv[])
     char * watch_fifo = "./tmp/watch_ins";
 
     // Create fifos:
-    if (mkfifo(mx_fifo, S_IRUSR | S_IWUSR) < 0) perror("Error while creating ins-mx fifo");
-    if (mkfifo(mz_fifo, S_IRUSR | S_IWUSR) < 0) perror("Error while creating ins-mz fifo");
-    if (mkfifo(watch_fifo, S_IRUSR | S_IWUSR) < 0) perror("Error while creating watch-ins fifo");
-
-    // Open fifos:
-    int fd_mx = open(mx_fifo, O_RDWR);
-    if (fd_mx < 0) perror("Error opening ins-mx fifo");
-    int fd_mz = open(mz_fifo, O_RDWR);
-    if (fd_mz < 0) perror("Error opening ins-mz fifo");
-    int fd_watch = open(watch_fifo, O_RDWR);
-    if (fd_watch < 0) perror("Error opening watch-ins fifo");
+    mkfifo(mx_fifo, 0666);
+    mkfifo(mz_fifo, 0666);
+    mkfifo(watch_fifo, 0666);
 
     // Buffers for msgs:
-    char buf[10];
+    char buf[2];
+    char v_buf[4];
 
     // Variables for inactivity time:
     struct timeval tv;
-    float timeout = 0.2;
-    float in_time = 0;
+    float timeout = 0.5;
 
     // Variables for the select():
     fd_set rfds;
@@ -77,6 +69,15 @@ int main(int argc, char const *argv[])
     // Infinite loop
     while(TRUE)
 	{	
+
+        // Open fifos:
+        int fd_mx = open(mx_fifo, O_RDWR);
+        if (fd_mx < 0) perror("Error opening ins-mx fifo");
+        int fd_mz = open(mz_fifo, O_RDWR);
+        if (fd_mz < 0) perror("Error opening ins-mz fifo");
+        int fd_watch = open(watch_fifo, O_RDWR);
+        if (fd_watch < 0) perror("Error opening watch-ins fifo");
+
         // Get mouse/resize commands in non-blocking mode...
         int cmd = getch();
 
@@ -117,9 +118,8 @@ int main(int argc, char const *argv[])
                     }
                 }
 
-                // Reset inactivity timer:
-                in_time = 0;
-                if (write(fd_watch, stop, SIZE_STOP) != SIZE_STOP) perror("Error writing in ins-watch fifo");
+                // Send ALIVE signal to watchdog:
+                if (write(fd_watch, "01", SIZE_MSG) != SIZE_MSG) perror("Error writing in ins-watch fifo");
             }
         } 
 
@@ -133,38 +133,28 @@ int main(int argc, char const *argv[])
         tv.tv_sec = timeout;
         tv.tv_usec = 0;
 
-        retval = select(fd_watch + 1, &rfds, NULL, NULL, &tv);
+        retval = select(FD_SETSIZE + 1, &rfds, NULL, NULL, &tv);
         if (retval < 0) perror("Error in select");
         else if (retval) {
+            if (FD_ISSET(fd_mx, &rfds)){
+                if (read(fd_mx, v_buf, 4*sizeof(char) + 1) < 0) perror("Error reading from cmd-mx fifo");
+                sscanf(v_buf, "%f", &v_x);
+                mvprintw(LINES - 1, 1, v_buf);
+            }
+            if (FD_ISSET(fd_mz, &rfds)){
+                if (read(fd_mz, v_buf, 4*sizeof(char) + 1) < 0) perror("Error reading from cmd-mx fifo");
+                sscanf(v_buf, "%f", &v_y);
+                mvprintw(LINES - 1, 1, v_buf);
+            }
             if (FD_ISSET(fd_watch, &rfds)){
-                if (read(fd_watch, buf, 10*sizeof(char)) < 0) perror("Error reading from cmd-mx fifo");
+                if (read(fd_watch, buf, SIZE_MSG) < 0) perror("Error reading from cmd-mx fifo");
                 if (sr_function(fd_mx, fd_mz, 1) < 0) perror("Error in sr_function");
-            } else {
-                if (FD_ISSET(fd_mx, &rfds)){
-                    if (read(fd_mx, buf, 10*sizeof(char)) < 0) perror("Error reading from cmd-mx fifo");
-                    sscanf(buf, "%f", v_x);
-                }
-                if (FD_ISSET(fd_mz, &rfds)){
-                    if (read(fd_mz, buf, 10*sizeof(char)) < 0) perror("Error reading from cmd-mx fifo");
-                    sscanf(buf, "%f", v_y);
-                }
             }
         } 
-        else
-        {
-            in_time += timeout;
-        }
 
         // Add velocities to ee pos:
         ee_x += v_x;
         ee_y += v_y;
-
-        if (in_time > RTIME){
-            if (write(fd_watch, inc, SIZE_STOP) != SIZE_STOP) perror("Error writing in ins-watch fifo");
-        }
-
-        // Get values from motors:
-
         
         // To be commented in final version...
         // switch (cmd)
@@ -187,7 +177,12 @@ int main(int argc, char const *argv[])
         
         // Update UI
         update_console_ui(&ee_x, &ee_y);
+        close(fd_mx);
+        close(fd_mz);
+        close(fd_watch);
+        sleep(timeout);
 	}
+    
 
     // Terminate
     endwin();

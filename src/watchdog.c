@@ -1,1 +1,112 @@
-//TODO everything
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <unistd.h>
+#include <sys/wait.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <sys/select.h>
+
+#define RTIME 20
+#define SIZE_MSG 2*sizeof(char)+1
+
+int main(int argc, char ** argv){
+    // Paths for fifos:
+    char * cmd_fifo = "./tmp/watch_cmd";
+    char * ins_fifo = "./tmp/watch_ins";
+    char * mx_fifo = "./tmp/watch_mx";
+    char * mz_fifo = "./tmp/watch_mz";
+
+    // Create fifos:
+    mkfifo(cmd_fifo, 0666);
+    mkfifo(ins_fifo, 0666);
+    mkfifo(mx_fifo, 0666);
+    mkfifo(mz_fifo, 0666);
+
+    // Variables for the select():
+    fd_set rfds;
+    int retval;
+
+    // Variables for inactivity time:
+    struct timeval tv;
+    float timeout = 2;
+    float in_time_cmd = 0;
+    float in_time_ins = 0;
+    float in_time_mx = 0;
+    float in_time_mz = 0;
+
+    // Buffer for messages:
+    char buf[2];
+
+    // Main loop:
+    while(1){
+
+        // Open fifos:
+        int fd_cmd = open(cmd_fifo, O_RDONLY);
+        if (fd_cmd < 0) perror("Error opening cmd-watch fifo");
+        int fd_ins = open(ins_fifo, O_RDWR);
+        if (fd_ins < 0) perror("Error opening ins-watch fifo");
+        int fd_mx = open(mx_fifo, O_RDONLY);
+        if (fd_mx < 0) perror("Error opening watch-mx fifo");
+        int fd_mz = open(mz_fifo, O_RDONLY);
+        if (fd_mz < 0) perror("Error opening watch-mz fifo");
+
+        // Create the set of read fds:
+        FD_ZERO(&rfds);
+        FD_SET(fd_cmd, &rfds);
+        FD_SET(fd_ins, &rfds);
+        FD_SET(fd_mx, &rfds);
+        FD_SET(fd_mz, &rfds);
+
+        // Set the timeout:
+        tv.tv_sec = timeout;
+        tv.tv_usec = 0;
+
+        retval = select(FD_SETSIZE + 1, &rfds, NULL, NULL, &tv);
+        if (retval < 0) perror("Error in select");
+        else if (retval) {
+            if (FD_ISSET(fd_cmd, &rfds)){
+                if (read(fd_cmd, buf, SIZE_MSG) < 0) perror("Error reading from cmd-watch fifo");
+                in_time_cmd = 0;
+            } else {
+                in_time_cmd += timeout;
+            }
+
+            if (FD_ISSET(fd_ins, &rfds)){
+                if (read(fd_ins, buf, SIZE_MSG) < 0) perror("Error reading from ins-watch fifo");
+                in_time_ins = 0;
+            } else {
+                in_time_ins += timeout;
+            }
+
+            if (FD_ISSET(fd_mx, &rfds)){
+                if (read(fd_mx, buf, SIZE_MSG) < 0) perror("Error reading from mx-watch fifo");
+                in_time_mx = 0;
+            } else {
+                in_time_mx += timeout;
+            }
+
+            if (FD_ISSET(fd_mz, &rfds)){
+                if (read(fd_mz, buf, SIZE_MSG) < 0) perror("Error reading from mz-watch fifo");
+                in_time_mz = 0;
+            } else {
+                in_time_mz += timeout;
+            }
+        } 
+
+        // Reset signal due to inactivity time:
+        if (in_time_cmd > RTIME && in_time_ins > RTIME && in_time_mx > RTIME && in_time_mz > RTIME) {
+            if (write(fd_ins, "01", SIZE_MSG) < 0) perror("Error writing to ins-watch fifo");
+        }
+        printf("in_time_cmd: %f\n", in_time_cmd);
+        printf("in_time_ins: %f\n", in_time_ins);
+        printf("in_time_mx: %f\n", in_time_mx);
+        printf("in_time_mz: %f\n", in_time_mz);
+
+        close(fd_cmd);
+        close(fd_ins);
+        close(fd_mx);
+        close(fd_mz);
+    }
+    return 0;
+}
