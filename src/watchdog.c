@@ -7,8 +7,9 @@
 #include <fcntl.h>
 #include <sys/select.h>
 
-#define RTIME 20
-#define SIZE_MSG 2*sizeof(char)+1
+#define RTIME 20*1e6 // Time in usec
+#define SIZE_MSG 3
+#define DT 25000 // Time in usec = 40 Hz
 
 int main(int argc, char ** argv){
     // Paths for fifos:
@@ -23,13 +24,22 @@ int main(int argc, char ** argv){
     mkfifo(mx_fifo, 0666);
     mkfifo(mz_fifo, 0666);
 
+    // Open fifos:
+    int fd_cmd = open(cmd_fifo, O_RDONLY);
+    if (fd_cmd < 0) perror("Error opening cmd-watch fifo");
+    int fd_ins = open(ins_fifo, O_RDONLY);
+    if (fd_ins < 0) perror("Error opening ins-watch fifo");
+    int fd_mx = open(mx_fifo, O_RDONLY);
+    if (fd_mx < 0) perror("Error opening watch-mx fifo");
+    int fd_mz = open(mz_fifo, O_RDONLY);
+    if (fd_mz < 0) perror("Error opening watch-mz fifo");
+
     // Variables for the select():
     fd_set rfds;
     int retval;
 
     // Variables for inactivity time:
     struct timeval tv;
-    float timeout = 2;
     float in_time_cmd = 0;
     float in_time_ins = 0;
     float in_time_mx = 0;
@@ -41,16 +51,6 @@ int main(int argc, char ** argv){
     // Main loop:
     while(1){
 
-        // Open fifos:
-        int fd_cmd = open(cmd_fifo, O_RDONLY);
-        if (fd_cmd < 0) perror("Error opening cmd-watch fifo");
-        int fd_ins = open(ins_fifo, O_RDWR);
-        if (fd_ins < 0) perror("Error opening ins-watch fifo");
-        int fd_mx = open(mx_fifo, O_RDONLY);
-        if (fd_mx < 0) perror("Error opening watch-mx fifo");
-        int fd_mz = open(mz_fifo, O_RDONLY);
-        if (fd_mz < 0) perror("Error opening watch-mz fifo");
-
         // Create the set of read fds:
         FD_ZERO(&rfds);
         FD_SET(fd_cmd, &rfds);
@@ -59,54 +59,54 @@ int main(int argc, char ** argv){
         FD_SET(fd_mz, &rfds);
 
         // Set the timeout:
-        tv.tv_sec = timeout;
-        tv.tv_usec = 0;
+        tv.tv_sec = 0;
+        tv.tv_usec = DT;
 
-        retval = select(FD_SETSIZE + 1, &rfds, NULL, NULL, &tv);
+        retval = select(fd_mz + 1, &rfds, NULL, NULL, &tv);
         if (retval < 0) perror("Error in select");
         else if (retval) {
             if (FD_ISSET(fd_cmd, &rfds)){
                 if (read(fd_cmd, buf, SIZE_MSG) < 0) perror("Error reading from cmd-watch fifo");
                 in_time_cmd = 0;
             } else {
-                in_time_cmd += timeout;
+                in_time_cmd += DT;
             }
 
             if (FD_ISSET(fd_ins, &rfds)){
                 if (read(fd_ins, buf, SIZE_MSG) < 0) perror("Error reading from ins-watch fifo");
                 in_time_ins = 0;
             } else {
-                in_time_ins += timeout;
+                in_time_ins += DT;
             }
 
             if (FD_ISSET(fd_mx, &rfds)){
                 if (read(fd_mx, buf, SIZE_MSG) < 0) perror("Error reading from mx-watch fifo");
                 in_time_mx = 0;
             } else {
-                in_time_mx += timeout;
+                in_time_mx += DT;
             }
 
             if (FD_ISSET(fd_mz, &rfds)){
                 if (read(fd_mz, buf, SIZE_MSG) < 0) perror("Error reading from mz-watch fifo");
                 in_time_mz = 0;
             } else {
-                in_time_mz += timeout;
+                in_time_mz += DT;
             }
-        } 
+        } else {
+            in_time_cmd += DT;
+            in_time_ins += DT;
+            in_time_mx += DT;
+            in_time_mz += DT;
+        }
 
         // Reset signal due to inactivity time:
         if (in_time_cmd > RTIME && in_time_ins > RTIME && in_time_mx > RTIME && in_time_mz > RTIME) {
-            if (write(fd_ins, "01", SIZE_MSG) < 0) perror("Error writing to ins-watch fifo");
+            printf("in_time_cmd: %f\n", in_time_cmd);
+            printf("in_time_ins: %f\n", in_time_ins);
+            printf("in_time_mx: %f\n", in_time_mx);
+            printf("in_time_mz: %f\n", in_time_mz);
+            printf("ALL PROGRAMS INACTIVE. KILL EVERYTHING.\n");
         }
-        printf("in_time_cmd: %f\n", in_time_cmd);
-        printf("in_time_ins: %f\n", in_time_ins);
-        printf("in_time_mx: %f\n", in_time_mx);
-        printf("in_time_mz: %f\n", in_time_mz);
-
-        close(fd_cmd);
-        close(fd_ins);
-        close(fd_mx);
-        close(fd_mz);
     }
     return 0;
 }
