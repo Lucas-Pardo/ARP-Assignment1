@@ -26,20 +26,24 @@ int main(int argc, char ** argv){
     // Paths for fifos:
     char * mx_fifo = "./tmp/world_mx";
     char * mz_fifo = "./tmp/world_mz";
-    char * ins_fifo = "./tmp/world_ins";
+    char * insx_fifo = "./tmp/worldx_ins";
+    char * insz_fifo = "./tmp/worldz_ins";
 
     // Create fifos:
     mkfifo(mx_fifo, 0666);
     mkfifo(mz_fifo, 0666);
-    mkfifo(ins_fifo, 0666);
+    mkfifo(insx_fifo, 0666);
+    mkfifo(insz_fifo, 0666);
 
     // Open fifos:
     int fd_mx = open(mx_fifo, O_RDONLY);
     if (fd_mx < 0) perror("Error opening world-mx fifo");
     int fd_mz = open(mz_fifo, O_RDONLY);
     if (fd_mz < 0) perror("Error opening world-mz fifo");
-    int fd_ins = open(ins_fifo, O_WRONLY);
-    if (fd_ins < 0) perror("Error opening world-ins fifo");
+    int fd_insx = open(insx_fifo, O_WRONLY);
+    if (fd_insx < 0) perror("Error opening worldx-ins fifo");
+    int fd_insz = open(insz_fifo, O_WRONLY);
+    if (fd_insz < 0) perror("Error opening worldz-ins fifo");
 
     // Variables for the select():
     fd_set rfds;
@@ -48,11 +52,11 @@ int main(int argc, char ** argv){
     // Variables for inactivity time:
     struct timeval tv;
 
-    // Velocities:
-    float v_x, v_y;
+    // Positions:
+    float ee_x, ee_z;
 
     // Buffer for messages:
-    char v_buf[6];
+    char buf[6];
 
     // Main loop:
     while(1){
@@ -66,27 +70,25 @@ int main(int argc, char ** argv){
         tv.tv_sec = 0;
         tv.tv_usec = DT;
 
-        retval = select(fd_ins + 1, &rfds, NULL, NULL, &tv);
+        retval = select(fd_insz + 1, &rfds, NULL, NULL, &tv);
         if (retval < 0) perror("Error in select");
         else if (retval) {
             if (FD_ISSET(fd_mx, &rfds)) {
-                if (read(fd_mx, v_buf, 7) < 0) perror("Error reading from world-mx");
-                sscanf(v_buf, "%f", &v_x);
-                v_x = rand_err(v_x);
-                sprintf(v_buf, "%.2f", v_x);
-                if (write(fd_ins, "00", 3) < 0) perror("Error writing to world-ins");
-                if (write(fd_ins, v_buf, 7) < 0) perror("Error writing to world-ins");
+                if (read(fd_mx, buf, 7) < 0) perror("Error reading from world-mx");
+                sscanf(buf, "%f", &ee_x);
+                ee_x = rand_err(ee_x);
+                sprintf(buf, "%.2f", ee_x);
+                if (write(fd_insx, buf, 7) < 0) perror("Error writing to world-ins");
             }
             if (FD_ISSET(fd_mz, &rfds)) {
-                if (read(fd_mz, v_buf, 7) < 0) perror("Error reading from world-mz");
-                sscanf(v_buf, "%f", &v_y);
-                v_y = rand_err(v_y);
-                sprintf(v_buf, "%.2f", v_y);
-                if (write(fd_ins, "01", 3) < 0) perror("Error writing to world-ins");
-                if (write(fd_ins, v_buf, 7) < 0) perror("Error writing to world-ins");
+                if (read(fd_mz, buf, 7) < 0) perror("Error reading from world-mz");
+                sscanf(buf, "%f", &ee_z);
+                ee_z = rand_err(ee_z);
+                sprintf(buf, "%.2f", ee_z);
+                if (write(fd_insz, buf, 7) < 0) perror("Error writing to world-ins");
             }
-            printf("v_x: %.2f", v_x);
-            printf("v_y: %.2f", v_y);
+            // printf("ee_x: %.2f", ee_x);
+            // printf("ee_z: %.2f", ee_z);
         } 
 
     }

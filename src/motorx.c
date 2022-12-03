@@ -10,28 +10,35 @@
 #define VEL_INC 0.25
 #define SIZE_MSG 3
 #define DT 25000 // Time in usec = 40 Hz
+#define MAXPOSITION 40 // Maximum position in x
 
 // TODO write status changes to a log file in ./logs
 
-int stopped = 0;
+int reset = 0;
+
+// Current velocity:
+float v = 0;
 
 void signal_handler(int sig) {
-    if (sig == SIGINT) {
+    if (sig == SIGUSR1) {
         printf("Stopped.\n");
-        if (stopped) {
-            stopped = 0;
-        } else {
-            stopped = 1;
-        }
+        reset = 0;
+        v = 0;
+    } else if (sig == SIGUSR2) {
+        printf("Reseting position.\n");
+        reset = 1;
     }
 }
 
 int main(int argc, char **argv){
 
     // Signal handler:
-    if (signal(SIGINT, signal_handler) == SIG_ERR) {
-        printf("Can't catch SIGINT.\n");
-    };
+    if (signal(SIGUSR1, signal_handler) == SIG_ERR) {
+        printf("Can't catch SIGUSR1.\n");
+    }
+    if (signal(SIGUSR2, signal_handler) == SIG_ERR) {
+        printf("Can't catch SIGUSR2.\n");
+    }
 
     // Paths for fifos:
     char * cmd_fifo = "./tmp/cmd_mx";
@@ -58,12 +65,12 @@ int main(int argc, char **argv){
     // Variables for inactivity time:
     struct timeval tv;
 
-    // Current velocity:
-    float v = 0;
+    // Current desired position:
+    float xhat = 0;
 
     // Buffer for messages:
     char buf[2];
-    char v_buf[6] = "000000";
+    char x_buf[6] = "000000";
     int vel;
 
     // Main loop:
@@ -87,19 +94,24 @@ int main(int argc, char **argv){
             } else {
                 v += vel * VEL_INC;
             }
-
-            if (!stopped) {
-                // Send current velocity to inspection console:
-                sprintf(v_buf, "%.2f", v);
-                if (write(fd_world, v_buf, 7) < 0) perror("Error writing to ins-mx fifo");
-                printf("v: %f\n", v);
-                
-                // Send ALIVE signal to watchdog:
-                if (write(fd_watch, "01", SIZE_MSG) != SIZE_MSG) perror("Error writing in mx-watch fifo");
-            }
+            printf("v: %f\n", v);
         } 
-        // printf("v_buf: %s\n", v_buf);
-        // printf("v: %f\n", v);
+        if (v != 0) {
+            // Reset process:
+            if (reset) v = -5 * VEL_INC;
+            // Send current desired position to world process:
+            xhat += v * DT / 1e6;
+            if (xhat > MAXPOSITION) xhat = MAXPOSITION;
+            if (xhat < 0) {
+                xhat = 0;
+                reset = 0;
+            }
+            sprintf(x_buf, "%.2f", xhat);
+            if (write(fd_world, x_buf, 7) < 0) perror("Error writing to world-mx fifo");
+                
+            // Send ALIVE signal to watchdog:
+            if (write(fd_watch, "01", SIZE_MSG) != SIZE_MSG) perror("Error writing in mx-watch fifo");
+        }
     }
     return 0;
 }
