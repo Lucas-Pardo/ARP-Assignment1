@@ -39,7 +39,7 @@ int main() {
   if (pid_mz < 0) printf("Error spawning motorz");
 
   // Add the motors pids as arguments for inspection console:
-  char buf1[10], buf2[10];
+  char buf1[10], buf2[10], buf3[10], buf4[10], buf5[10];
   sprintf(buf1, "%d", pid_mx);
   sprintf(buf2, "%d", pid_mz);
   char * arg_list_inspection[] = { "/usr/bin/konsole", "-e", "./bin/inspection", buf1, buf2, NULL };

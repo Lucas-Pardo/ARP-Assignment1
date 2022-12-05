@@ -6,6 +6,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <sys/select.h>
+#include <signal.h>
 
 #define VEL_INC 0.1
 #define SIZE_MSG 3
@@ -21,11 +22,11 @@ float v = 0;
 
 void signal_handler(int sig) {
     if (sig == SIGUSR1) {
-        printf("Stopped.\n");
+        // printf("Stopped.\n");
         reset = 0;
         v = 0;
     } else if (sig == SIGUSR2) {
-        printf("Reseting position.\n");
+        // printf("Reseting position.\n");
         reset = 1;
     }
 }
@@ -33,12 +34,12 @@ void signal_handler(int sig) {
 int main(int argc, char **argv){
 
     // Signal handler:
-    if (signal(SIGUSR1, signal_handler) == SIG_ERR) {
-        printf("Can't catch SIGUSR1.\n");
-    }
-    if (signal(SIGUSR2, signal_handler) == SIG_ERR) {
-        printf("Can't catch SIGUSR2.\n");
-    }
+    struct sigaction sa;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_handler = &signal_handler;
+    sa.sa_flags = SA_RESTART;
+    sigaction(SIGUSR1, &sa, NULL);
+    sigaction(SIGUSR2, &sa, NULL);
     
     // Paths for fifos:
     char * cmd_fifo = "./tmp/cmd_mz";

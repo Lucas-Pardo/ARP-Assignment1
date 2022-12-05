@@ -7,6 +7,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <sys/select.h>
+#include <signal.h>
 
 #define SIZE_MSG 3
 #define DT 25000 // Time in usec = 40 Hz
