@@ -23,6 +23,9 @@ float rand_err(float v) {
 
 int main(int argc, char ** argv){
 
+    // Log file:
+    int fd_log = creat("./logs/world.txt", 0666);
+
     // Paths for fifos:
     char * mx_fifo = "./tmp/world_mx";
     char * mz_fifo = "./tmp/world_mz";
@@ -57,6 +60,9 @@ int main(int argc, char ** argv){
 
     // Buffer for messages:
     char buf[6];
+    char buf_x[64];
+    char buf_z[64];
+    int lbuf_x, lbuf_z;
 
     // Main loop:
     while(1){
@@ -73,10 +79,24 @@ int main(int argc, char ** argv){
         retval = select(fd_insz + 1, &rfds, NULL, NULL, &tv);
         if (retval < 0) perror("Error in select");
         else if (retval) {
+
+            // Write to log file:
+            time_t now = time(NULL);
+            struct tm *timenow = localtime(&now);
+            char log_msg[64];
+            int length = strftime(log_msg, 64, "[%H:%M:%S]: ", timenow);
+            if (write(fd_log, log_msg, length) != length) perror("Error writing in log");
+
             if (FD_ISSET(fd_mx, &rfds)) {
                 if (read(fd_mx, buf, 7) < 0) perror("Error reading from world-mx");
                 sscanf(buf, "%f", &ee_x);
                 ee_x = rand_err(ee_x);
+
+                // Write to log file:
+                lbuf_x = snprintf(buf_x, 64, "Received x = %s, generated x = %.2f\n", buf, ee_x);
+                if (write(fd_log, buf_x, lbuf_x) != lbuf_x) perror("Error writing in log");
+
+                // Write to inspection console:
                 sprintf(buf, "%.2f", ee_x);
                 if (write(fd_insx, buf, 7) < 0) perror("Error writing to world-ins");
             }
@@ -84,11 +104,16 @@ int main(int argc, char ** argv){
                 if (read(fd_mz, buf, 7) < 0) perror("Error reading from world-mz");
                 sscanf(buf, "%f", &ee_z);
                 ee_z = rand_err(ee_z);
+
+                // Write to log file:
+                lbuf_z = snprintf(buf_z, 64, "Received z = %s, generated z = %.2f\n", buf, ee_z);
+                if (write(fd_log, buf_z, lbuf_z) != lbuf_z) perror("Error writing in log");
+
+                // Write to inspection console:
                 sprintf(buf, "%.2f", ee_z);
                 if (write(fd_insz, buf, 7) < 0) perror("Error writing to world-ins");
             }
-            // printf("ee_x: %.2f", ee_x);
-            // printf("ee_z: %.2f", ee_z);
+            
         } 
 
     }

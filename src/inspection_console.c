@@ -49,6 +49,9 @@ int main(int argc, char const *argv[])
         sscanf(argv[2], "%d", &pid_mz);
     }
 
+    // Log file:
+    int fd_log = creat("./logs/ins.txt", 0666);
+
     // Paths for fifos:
     char * watch_fifo = "./tmp/watch_ins";
     char * worldx_fifo = "./tmp/worldx_ins";
@@ -104,13 +107,16 @@ int main(int argc, char const *argv[])
 
                 // STOP button pressed
                 if(check_button_pressed(stp_button, &event)) {
-                    // mvprintw(LINES - 1, 1, "STP button pressed");
-                    if (sr_function(pid_mx, pid_mz, 0) < 0) perror("Error in sr_function");
-                    // refresh();
-                    // sleep(1);
-                    // for(int j = 0; j < COLS; j++) {
-                    //     mvaddch(LINES - 1, j, ' ');
-                    // }
+
+                    // Write command to motors:
+                    if (sr_function(pid_mx, pid_mz, 0) < 0) printf("Error in sr_function");
+
+                    // Write command to log file:
+                    time_t now = time(NULL);
+                    struct tm *timenow = localtime(&now);
+                    char log_msg[64];
+                    int length = strftime(log_msg, 64, "[%H:%M:%S]: Pressed STOP button.\n", timenow);
+                    if (write(fd_log, log_msg, length) != length) perror("Error writing in log");
 
                     // Send ALIVE signal to watchdog:
                     if (write(fd_watch, "01", SIZE_MSG) != SIZE_MSG) perror("Error writing in ins-watch fifo");
@@ -118,13 +124,16 @@ int main(int argc, char const *argv[])
 
                 // RESET button pressed
                 else if(check_button_pressed(rst_button, &event)) {
-                    // mvprintw(LINES - 1, 1, "RST button pressed");
-                    if (sr_function(pid_mx, pid_mz, 1) < 0) perror("Error in sr_function");
-                    // refresh();
-                    // sleep(1);
-                    // for(int j = 0; j < COLS; j++) {
-                    //     mvaddch(LINES - 1, j, ' ');
-                    // }
+
+                    // Write command to motors:
+                    if (sr_function(pid_mx, pid_mz, 1) < 0) printf("Error in sr_function");
+
+                    // Write command to log file:
+                    time_t now = time(NULL);
+                    struct tm *timenow = localtime(&now);
+                    char log_msg[64];
+                    int length = strftime(log_msg, 64, "[%H:%M:%S]: Pressed RESET button.\n", timenow);
+                    if (write(fd_log, log_msg, length) != length) perror("Error writing in log");
 
                     // Send ALIVE signal to watchdog:
                     if (write(fd_watch, "01", SIZE_MSG) != SIZE_MSG) perror("Error writing in ins-watch fifo");

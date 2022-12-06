@@ -7,6 +7,7 @@
 #include <fcntl.h>
 #include <sys/select.h>
 #include <signal.h>
+#include <errno.h>
 
 #define VEL_INC 0.25
 #define SIZE_MSG 3
@@ -22,11 +23,11 @@ float v = 0;
 
 void signal_handler(int sig) {
     if (sig == SIGUSR1) { 
-        // printf("Stopped.\n");
+        printf("Stopped.\n");
         reset = 0;
         v = 0;
     } else if (sig == SIGUSR2) {
-        // printf("Reseting position.\n");
+        printf("Reseting position.\n");
         reset = 1;
     }
 }
@@ -38,8 +39,8 @@ int main(int argc, char **argv){
     sigemptyset(&sa.sa_mask);
     sa.sa_handler = &signal_handler;
     sa.sa_flags = SA_RESTART;
-    sigaction(SIGUSR1, &sa, NULL);
-    sigaction(SIGUSR2, &sa, NULL);
+    if (sigaction(SIGUSR1, &sa, NULL) < 0) printf("Could not catch SIGUSR1\n");
+    if (sigaction(SIGUSR2, &sa, NULL) < 0) printf("Could not catch SIGUSR2\n");
 
     // Paths for fifos:
     char * cmd_fifo = "./tmp/cmd_mx";
@@ -86,8 +87,8 @@ int main(int argc, char **argv){
         tv.tv_usec = DT;
 
         retval = select(fd_watch + 1, &rfds, NULL, NULL, &tv);
-        if (retval < 0) perror("Error in select");
-        else if (retval) {
+        if (retval < 0 && errno != EINTR) perror("Error in select");
+        else if (retval > 0) {
             if (read(fd_cmd, buf, SIZE_MSG) < 0) perror("Error reading from cmd-mx fifo");
             sscanf(buf, "%d", &vel);
             if (vel == 0) {
@@ -95,17 +96,22 @@ int main(int argc, char **argv){
             } else {
                 v += vel * VEL_INC;
             }
-            printf("v: %f\n", v);
+            printf("vx: %f\n", v);
         } 
+
+        // Reset process:
+        if (reset) v = -10 * VEL_INC;
+
         if (v != 0) {
-            // Reset process:
-            if (reset) v = -5 * VEL_INC;
             // Send current desired position to world process:
             xhat += v * DT / 1e6;
             if (xhat > MAXPOSITION) xhat = MAXPOSITION;
             if (xhat < 0) {
                 xhat = 0;
-                reset = 0;
+                if (reset) {
+                    v = 0;
+                    reset = 0;
+                }
             }
             sprintf(x_buf, "%.2f", xhat);
             if (write(fd_world, x_buf, 7) < 0) perror("Error writing to world-mx fifo");

@@ -7,11 +7,22 @@
 #include <fcntl.h>
 #include <sys/select.h>
 
-#define RTIME 20*1e6 // Time in usec
+#define KILLTIME 60*1e6 // Time in usec
 #define SIZE_MSG 3
 #define DT 25000 // Time in usec = 40 Hz
 
 int main(int argc, char ** argv){
+
+    // Get PIDs:
+    int pid_cmd, pid_ins;
+    if (argc != 3) {
+        printf("Wrong number of arguments: pid_cmd pid_ins");
+        return -1;
+    } else {
+        sscanf(argv[1], "%d", &pid_cmd);
+        sscanf(argv[2], "%d", &pid_ins);
+    }
+
     // Paths for fifos:
     char * cmd_fifo = "./tmp/watch_cmd";
     char * ins_fifo = "./tmp/watch_ins";
@@ -100,12 +111,10 @@ int main(int argc, char ** argv){
         }
 
         // Reset signal due to inactivity time:
-        if (in_time_cmd > RTIME && in_time_ins > RTIME && in_time_mx > RTIME && in_time_mz > RTIME) {
-            printf("in_time_cmd: %f\n", in_time_cmd);
-            printf("in_time_ins: %f\n", in_time_ins);
-            printf("in_time_mx: %f\n", in_time_mx);
-            printf("in_time_mz: %f\n", in_time_mz);
-            printf("ALL PROGRAMS INACTIVE. KILL EVERYTHING.\n");
+        if (in_time_cmd > KILLTIME && in_time_ins > KILLTIME && in_time_mx > KILLTIME && in_time_mz > KILLTIME) {
+            kill(pid_cmd, SIGINT);
+            kill(pid_ins, SIGINT);
+            break;
         }
     }
     return 0;

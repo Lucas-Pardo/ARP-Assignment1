@@ -7,8 +7,9 @@
 #include <fcntl.h>
 #include <sys/select.h>
 #include <signal.h>
+#include <errno.h>
 
-#define VEL_INC 0.1
+#define VEL_INC 0.25
 #define SIZE_MSG 3
 #define DT 25000 // Time in usec = 40 Hz
 #define MAXPOSITION 10 // Maximum position in z
@@ -38,8 +39,8 @@ int main(int argc, char **argv){
     sigemptyset(&sa.sa_mask);
     sa.sa_handler = &signal_handler;
     sa.sa_flags = SA_RESTART;
-    sigaction(SIGUSR1, &sa, NULL);
-    sigaction(SIGUSR2, &sa, NULL);
+    if (sigaction(SIGUSR1, &sa, NULL) < 0) printf("Could not catch SIGUSR1\n");
+    if (sigaction(SIGUSR2, &sa, NULL) < 0) printf("Could not catch SIGUSR2\n");
     
     // Paths for fifos:
     char * cmd_fifo = "./tmp/cmd_mz";
@@ -86,8 +87,8 @@ int main(int argc, char **argv){
         tv.tv_usec = DT;
 
         retval = select(fd_watch + 1, &rfds, NULL, NULL, &tv);
-        if (retval < 0) perror("Error in select");
-        else if (retval) {
+        if (retval < 0 && errno != EINTR) perror("Error in select");
+        else if (retval > 0) {
             if (read(fd_cmd, buf, SIZE_MSG) < 0) perror("Error reading from cmd-mz fifo");
             sscanf(buf, "%d", &vel);
             if (vel == 0) {
@@ -95,17 +96,22 @@ int main(int argc, char **argv){
             } else {
                 v += vel * VEL_INC;
             }
-            printf("v: %f\n", v);
+            printf("vz: %f\n", v);
         } 
+
+        // Reset process:
+        if (reset) v = -10 * VEL_INC;
+
         if (v != 0) {
-            // Reset process:
-            if (reset) v = -5 * VEL_INC;
-            // Send current velocity to world process:
+            // Send current desired position to world process:
             zhat += v * DT / 1e6;
             if (zhat > MAXPOSITION) zhat = MAXPOSITION;
             if (zhat < 0) {
                 zhat = 0;
-                reset = 0;
+                if (reset) {
+                    v = 0;
+                    reset = 0;
+                }
             }
             sprintf(z_buf, "%.2f", zhat);
             if (write(fd_world, z_buf, 7) < 0) perror("Error writing to world-mz fifo");

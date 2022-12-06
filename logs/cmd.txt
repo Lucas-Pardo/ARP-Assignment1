@@ -1,0 +1,6 @@
+[16:16:38]: Pressed velocity increase of motor X.
+[16:16:40]: Pressed velocity increase of motor Z.
+[16:16:43]: Pressed velocity stop of motor Z.
+[16:16:45]: Pressed velocity decrease of motor Z.
+[16:16:47]: Pressed velocity stop of motor X.
+[16:16:48]: Pressed velocity decrease of motor X.
