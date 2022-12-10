@@ -10,9 +10,9 @@
 #include <signal.h>
 
 #define SIZE_MSG 3
-#define DT 25000 // Time in usec = 40 Hz
+#define DT 25000 // Time in usec (40 Hz)
 
-// TODO write status changes to a log file in ./logs
+int finish = 0;
 
 int sr_function(int pid_mx, int pid_mz, int r) {
     if (r) {
@@ -27,8 +27,20 @@ int sr_function(int pid_mx, int pid_mz, int r) {
     return 0;
 }
 
+void handler_exit(int sig) {
+    finish = 1;
+}
+
 int main(int argc, char const *argv[])
 {
+
+    // Signal handling to exit process:
+    struct sigaction sa_exit;
+    sigemptyset(&sa_exit.sa_mask);
+    sa_exit.sa_handler = &handler_exit;
+    sa_exit.sa_flags = SA_RESTART;
+    if (sigaction(SIGTERM, &sa_exit, NULL) < 0) printf("Could not catch SIGTERM.\n");
+    if (sigaction(SIGHUP, &sa_exit, NULL) < 0) printf("Could not catch SIGHUP.\n");
 
     // End-effector coordinates
     float ee_x, ee_z;
@@ -65,16 +77,17 @@ int main(int argc, char const *argv[])
     sleep(1);
 
     // Open fifos:
-    int fd_watch = open(watch_fifo, O_WRONLY);
-    if (fd_watch < 0) perror("Error opening watch-ins fifo");
     int fd_worldx = open(worldx_fifo, O_RDONLY);
     if (fd_worldx < 0) perror("Error opening worldx-ins fifo");
     int fd_worldz = open(worldz_fifo, O_RDONLY);
     if (fd_worldz < 0) perror("Error opening worldz-ins fifo");
+    int fd_watch = open(watch_fifo, O_WRONLY);
+    if (fd_watch < 0) perror("Error opening watch-ins fifo");
 
     // Buffers for msgs:
     char buf[2];
     char position_buf[6];
+    char log_msg[64];
 
     // Variables for inactivity time:
     struct timeval tv;
@@ -84,7 +97,7 @@ int main(int argc, char const *argv[])
     int retval;
 
     // Infinite loop
-    while(TRUE)
+    while(!finish)
 	{	
 
         // Get mouse/resize commands in non-blocking mode...
@@ -114,7 +127,6 @@ int main(int argc, char const *argv[])
                     // Write command to log file:
                     time_t now = time(NULL);
                     struct tm *timenow = localtime(&now);
-                    char log_msg[64];
                     int length = strftime(log_msg, 64, "[%H:%M:%S]: Pressed STOP button.\n", timenow);
                     if (write(fd_log, log_msg, length) != length) perror("Error writing in log");
 
@@ -131,7 +143,6 @@ int main(int argc, char const *argv[])
                     // Write command to log file:
                     time_t now = time(NULL);
                     struct tm *timenow = localtime(&now);
-                    char log_msg[64];
                     int length = strftime(log_msg, 64, "[%H:%M:%S]: Pressed RESET button.\n", timenow);
                     if (write(fd_log, log_msg, length) != length) perror("Error writing in log");
 
@@ -185,9 +196,18 @@ int main(int argc, char const *argv[])
         // Update UI
         update_console_ui(&ee_x, &ee_z);
 	}
-    
 
+    // Write to log file:
+    time_t now = time(NULL);
+    struct tm *timenow = localtime(&now);
+    int length = strftime(log_msg, 64, "[%H:%M:%S]: Exited succesfully.\n", timenow);
+    if (write(fd_log, log_msg, length) != length) printf("Could not write the msg.\n");
+    
     // Terminate
+    close(fd_log);
+    close(fd_watch);
+    close(fd_worldx);
+    close(fd_worldz);
     endwin();
     return 0;
 }

@@ -38,8 +38,8 @@ int main() {
   pid_t pid_mz = spawn("./bin/motorz", arg_list_motorz);
   if (pid_mz < 0) printf("Error spawning motorz");
 
-  printf("PID motor x: %d\n", pid_mx);
-  printf("PID motor z: %d\n", pid_mz);
+  // printf("PID motor x: %d\n", pid_mx);
+  // printf("PID motor z: %d\n", pid_mz);
 
   // Add the motors pids as arguments for inspection console:
   char buf1[10], buf2[10];
@@ -68,11 +68,11 @@ int main() {
   waitpid(pid_cmd, &status, 0);
   waitpid(pid_insp, &status, 0);
 
-  // After, kill programs in bg:
-  kill(pid_mx, SIGINT);
-  kill(pid_mz, SIGINT);
-  kill(pid_world, SIGINT);
-  kill(pid_watch, SIGINT);
+  // After, end programs in bg:
+  kill(pid_mx, SIGTERM);
+  kill(pid_mz, SIGTERM);
+  kill(pid_world, SIGTERM);
+  kill(pid_watch, SIGTERM);
   
   printf ("\nMain program exiting with status %d\n", status);
   return 0;

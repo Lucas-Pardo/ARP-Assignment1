@@ -8,28 +8,32 @@
 #include <sys/select.h>
 #include <signal.h>
 #include <errno.h>
+#include <time.h>
 
 #define VEL_INC 0.25
 #define SIZE_MSG 3
-#define DT 25000 // Time in usec = 40 Hz
+#define DT 25000 // Time in usec (40 Hz)
 #define MAXPOSITION 10 // Maximum position in z
 
 // TODO write status changes to a log file in ./logs
 
 int reset = 0;
+int finish = 0;
 
 // Current velocity:
 float v = 0;
 
 void signal_handler(int sig) {
     if (sig == SIGUSR1) {
-        // printf("Stopped.\n");
         reset = 0;
         v = 0;
     } else if (sig == SIGUSR2) {
-        // printf("Reseting position.\n");
         reset = 1;
     }
+}
+
+void handler_exit(int sig) {
+    finish = 1;
 }
 
 int main(int argc, char **argv){
@@ -41,6 +45,15 @@ int main(int argc, char **argv){
     sa.sa_flags = SA_RESTART;
     if (sigaction(SIGUSR1, &sa, NULL) < 0) printf("Could not catch SIGUSR1\n");
     if (sigaction(SIGUSR2, &sa, NULL) < 0) printf("Could not catch SIGUSR2\n");
+
+    // Signal handling to exit process:
+    struct sigaction sa_exit;
+    sigemptyset(&sa_exit.sa_mask);
+    sa_exit.sa_handler = &handler_exit;
+    if (sigaction(SIGTERM, &sa_exit, NULL) < 0) printf("Could not catch SIGTERM.\n");
+
+    // Log file:
+    int fd_log = creat("./logs/motorz.txt", 0666);
     
     // Paths for fifos:
     char * cmd_fifo = "./tmp/cmd_mz";
@@ -74,9 +87,10 @@ int main(int argc, char **argv){
     char buf[2];
     char z_buf[6] = "000000";
     int vel;
+    char log_msg[64];
 
     // Main loop:
-    while(1){
+    while(!finish){
 
         // Create the set of read fds:
         FD_ZERO(&rfds);
@@ -115,11 +129,30 @@ int main(int argc, char **argv){
             }
             sprintf(z_buf, "%.2f", zhat);
             if (write(fd_world, z_buf, 7) < 0) perror("Error writing to world-mz fifo");
-                
+            
+            // Write to log file:
+            time_t now = time(NULL);
+            struct tm *timenow = localtime(&now);
+            int length = strftime(log_msg, 64, "[%H:%M:%S]: ", timenow);
+            if (write(fd_log, log_msg, length) != length) perror("Error writing in log");
+            length = snprintf(log_msg, 64, "Current position x = %.2f\n", zhat);
+            if (write(fd_log, log_msg, length) != length) perror("Error writing in log");
                 
             // Send ALIVE signal to watchdog:
             if (write(fd_watch, "01", SIZE_MSG) != SIZE_MSG) perror("Error writing in mz-watch fifo");
         }
     }
+
+    // Write to log file:
+    time_t now = time(NULL);
+    struct tm *timenow = localtime(&now);
+    int length = strftime(log_msg, 64, "[%H:%M:%S]: Exited succesfully.\n", timenow);
+    if (write(fd_log, log_msg, length) != length) return -1;
+
+    // Terminate:
+    close(fd_cmd);
+    close(fd_log);
+    close(fd_watch);
+    close(fd_world);
     return 0;
 }

@@ -6,12 +6,61 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <sys/select.h>
+#include <time.h>
+#include <errno.h>
 
-#define KILLTIME 60*1e6 // Time in usec
+#define KILLTIME 10*1e6 // Time in usec
 #define SIZE_MSG 3
-#define DT 25000 // Time in usec = 40 Hz
+#define DT 25000 // Time in usec (40 Hz)
+
+int finish = 0;
+
+void handler_exit(int sig) {
+    finish = 1;
+}
+
+int write_log(int fd_log, int process, int status) {
+    // Write to log file:
+    time_t now = time(NULL);
+    struct tm *timenow = localtime(&now);
+    char log_msg[64];
+    int length = strftime(log_msg, 64, "[%H:%M:%S]: ", timenow);
+    if (write(fd_log, log_msg, length) != length) return -1;
+    char st[10];
+    if (status) {
+        sprintf(st, "%s", "inactive");
+    } else {
+        sprintf(st, "%s", "active");
+    }
+    switch (process)
+    {
+    case 0:
+        length = snprintf(log_msg, 64, "Command console is %s.\n", st);
+        break;
+    case 1:
+        length = snprintf(log_msg, 64, "Inspection console is %s.\n", st);
+        break;
+    case 2:
+        length = snprintf(log_msg, 64, "Motor X is %s.\n", st);
+        break;
+    case 3:
+        length = snprintf(log_msg, 64, "Motor Z is %s.\n", st);
+        break;
+    default:
+        break;
+    }
+    if (write(fd_log, log_msg, length) != length) return -1;
+    return 0;
+}
 
 int main(int argc, char ** argv){
+
+    // Signal handling to exit process:
+    struct sigaction sa_exit;
+    sigemptyset(&sa_exit.sa_mask);
+    sa_exit.sa_handler = &handler_exit;
+    sa_exit.sa_flags = SA_RESTART;
+    if (sigaction(SIGTERM, &sa_exit, NULL) < 0) printf("Could not catch SIGTERM.\n");
 
     // Get PIDs:
     int pid_cmd, pid_ins;
@@ -22,6 +71,9 @@ int main(int argc, char ** argv){
         sscanf(argv[1], "%d", &pid_cmd);
         sscanf(argv[2], "%d", &pid_ins);
     }
+
+    // Log file:
+    int fd_log = creat("./logs/watch.txt", 0666);
 
     // Paths for fifos:
     char * cmd_fifo = "./tmp/watch_cmd";
@@ -56,11 +108,24 @@ int main(int argc, char ** argv){
     float in_time_mx = 0;
     float in_time_mz = 0;
 
+    // Log variables:
+    int cmd_status = 0;
+    int ins_status = 0;
+    int mx_status = 0;
+    int mz_status = 0;
+
     // Buffer for messages:
     char buf[2];
 
+    // Write to log file:
+    time_t now = time(NULL);
+    struct tm *timenow = localtime(&now);
+    char log_msg[64];
+    int length = strftime(log_msg, 64, "[%H:%M:%S]: Started watching.\n", timenow);
+    if (write(fd_log, log_msg, length) != length) return -1;
+
     // Main loop:
-    while(1){
+    while(!finish){
 
         // Create the set of read fds:
         FD_ZERO(&rfds);
@@ -74,7 +139,7 @@ int main(int argc, char ** argv){
         tv.tv_usec = DT;
 
         retval = select(fd_mz + 1, &rfds, NULL, NULL, &tv);
-        if (retval < 0) perror("Error in select");
+        if (retval < 0 && errno != EINTR) perror("Error in select");
         else if (retval) {
             if (FD_ISSET(fd_cmd, &rfds)){
                 if (read(fd_cmd, buf, SIZE_MSG) < 0) perror("Error reading from cmd-watch fifo");
@@ -110,12 +175,61 @@ int main(int argc, char ** argv){
             in_time_mz += DT;
         }
 
+        // Set status variables and write to log:
+        if (!cmd_status && in_time_cmd > KILLTIME) {
+            cmd_status = 1;
+            if (write_log(fd_log, 0, 1) < 0) perror("Error writing to log file");
+        }
+        if (!ins_status && in_time_ins > KILLTIME) {
+            ins_status = 1;
+            if (write_log(fd_log, 1, 1) < 0) perror("Error writing to log file");
+        }
+        if (!mx_status && in_time_mx > KILLTIME) {
+            mx_status = 1;
+            if (write_log(fd_log, 2, 1) < 0) perror("Error writing to log file");
+        }
+        if (!mz_status && in_time_mz > KILLTIME) {
+            mz_status = 1;
+            if (write_log(fd_log, 3, 1) < 0) perror("Error writing to log file");
+        }
+
+        if (cmd_status && in_time_cmd == 0) {
+            cmd_status = 0;
+            if (write_log(fd_log, 0, 0) < 0) perror("Error writing to log file");
+        }
+        if (ins_status && in_time_ins == 0) {
+            ins_status = 0;
+            if (write_log(fd_log, 1, 0) < 0) perror("Error writing to log file");
+        }
+        if (mx_status && in_time_mx == 0) {
+            mx_status = 0;
+            if (write_log(fd_log, 2, 0) < 0) perror("Error writing to log file");
+        }
+        if (mz_status && in_time_mz == 0) {
+            mz_status = 0;
+            if (write_log(fd_log, 3, 0) < 0) perror("Error writing to log file");
+        }
+
         // Reset signal due to inactivity time:
-        if (in_time_cmd > KILLTIME && in_time_ins > KILLTIME && in_time_mx > KILLTIME && in_time_mz > KILLTIME) {
-            kill(pid_cmd, SIGINT);
-            kill(pid_ins, SIGINT);
+        if (cmd_status && ins_status && mx_status && mz_status) {
+            kill(pid_cmd, SIGTERM);
+            kill(pid_ins, SIGTERM);
             break;
         }
     }
+
+    // Write to log file:
+    now = time(NULL);
+    timenow = localtime(&now);
+    log_msg[64];
+    length = strftime(log_msg, 64, "[%H:%M:%S]: Exited succesfully.\n", timenow);
+    if (write(fd_log, log_msg, length) != length) printf("Could not write the msg.\n");
+
+    close(fd_cmd);
+    close(fd_ins);
+    close(fd_log);
+    close(fd_mx);
+    close(fd_mz);
+
     return 0;
 }

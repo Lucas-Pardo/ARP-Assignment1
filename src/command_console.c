@@ -9,12 +9,25 @@
 #include <time.h>
 
 #define SIZE_MSG 3
-#define DT 25000 // Time in usec = 40 Hz
+#define DT 25000 // Time in usec (40 Hz)
 
-// TODO write status changes to a log file in ./logs
+int finish = 0;
+
+void handler_exit(int sig) {
+    finish = 1;
+}
 
 int main(int argc, char const *argv[])
 {
+
+    // Signal handling to exit process:
+    struct sigaction sa_exit;
+    sigemptyset(&sa_exit.sa_mask);
+    sa_exit.sa_handler = &handler_exit;
+    sa_exit.sa_flags = SA_RESTART;
+    if (sigaction(SIGTERM, &sa_exit, NULL) < 0) printf("Could not catch SIGTERM.\n");
+    if (sigaction(SIGHUP, &sa_exit, NULL) < 0) printf("Could not catch SIGHUP.\n");
+
     // Utility variable to avoid trigger resize event on launch
     int first_resize = TRUE;
 
@@ -23,6 +36,7 @@ int main(int argc, char const *argv[])
 
     // Log file:
     int fd_log = creat("./logs/cmd.txt", 0666);
+    char log_msg[64];
 
     // Paths for fifos:
     char * mx_fifo = "./tmp/cmd_mx";
@@ -50,7 +64,7 @@ int main(int argc, char const *argv[])
     const char dec[] = "-1";
     
     // Infinite loop
-    while(TRUE)
+    while(!finish)
 	{	
         // Get mouse/resize commands in non-blocking mode...
         int cmd = getch();
@@ -84,7 +98,6 @@ int main(int argc, char const *argv[])
                     // Write command to log file:
                     time_t now = time(NULL);
                     struct tm *timenow = localtime(&now);
-                    char log_msg[64];
                     int length = strftime(log_msg, 64, "[%H:%M:%S]: Pressed velocity decrease of motor X.\n", timenow);
                     if (write(fd_log, log_msg, length) != length) perror("Error writing in log");
                     
@@ -101,7 +114,6 @@ int main(int argc, char const *argv[])
                     // Write command to log file:
                     time_t now = time(NULL);
                     struct tm *timenow = localtime(&now);
-                    char log_msg[64];
                     int length = strftime(log_msg, 64, "[%H:%M:%S]: Pressed velocity increase of motor X.\n", timenow);
                     if (write(fd_log, log_msg, length) != length) perror("Error writing in log");
 
@@ -118,7 +130,6 @@ int main(int argc, char const *argv[])
                     // Write command to log file:
                     time_t now = time(NULL);
                     struct tm *timenow = localtime(&now);
-                    char log_msg[64];
                     int length = strftime(log_msg, 64, "[%H:%M:%S]: Pressed velocity stop of motor X.\n", timenow);
                     if (write(fd_log, log_msg, length) != length) perror("Error writing in log");
 
@@ -135,7 +146,6 @@ int main(int argc, char const *argv[])
                     // Write command to log file:
                     time_t now = time(NULL);
                     struct tm *timenow = localtime(&now);
-                    char log_msg[64];
                     int length = strftime(log_msg, 64, "[%H:%M:%S]: Pressed velocity decrease of motor Z.\n", timenow);
                     if (write(fd_log, log_msg, length) != length) perror("Error writing in log");
 
@@ -152,7 +162,6 @@ int main(int argc, char const *argv[])
                     // Write command to log file:
                     time_t now = time(NULL);
                     struct tm *timenow = localtime(&now);
-                    char log_msg[64];
                     int length = strftime(log_msg, 64, "[%H:%M:%S]: Pressed velocity increase of motor Z.\n", timenow);
                     if (write(fd_log, log_msg, length) != length) perror("Error writing in log");
 
@@ -169,7 +178,6 @@ int main(int argc, char const *argv[])
                     // Write command to log file:
                     time_t now = time(NULL);
                     struct tm *timenow = localtime(&now);
-                    char log_msg[64];
                     int length = strftime(log_msg, 64, "[%H:%M:%S]: Pressed velocity stop of motor Z.\n", timenow);
                     if (write(fd_log, log_msg, length) != length) perror("Error writing in log");
 
@@ -183,7 +191,17 @@ int main(int argc, char const *argv[])
         nanosleep(&tim, NULL);
 	}
 
+    // Write to log file:
+    time_t now = time(NULL);
+    struct tm *timenow = localtime(&now);
+    int length = strftime(log_msg, 64, "[%H:%M:%S]: Exited succesfully.\n", timenow);
+    if (write(fd_log, log_msg, length) != length) printf("Could not write the msg.\n");
+
     // Terminate
+    close(fd_log);
+    close(fd_mx);
+    close(fd_mz);
+    close(fd_watch);
     endwin();
     return 0;
 }

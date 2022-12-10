@@ -9,8 +9,9 @@
 #include <sys/select.h>
 
 #define ERROR 0.05 // 5% error
-#define DT 25000 // Time in usec = 40 Hz
+#define DT 25000 // Time in usec (40 Hz)
 
+int finish = 0;
 
 float rand_err(float v) {
     // Initialize random seed:
@@ -21,7 +22,17 @@ float rand_err(float v) {
     return (1 + er) * v;
 }
 
+void handler_exit(int sig) {
+    finish = 1;
+}
+
 int main(int argc, char ** argv){
+
+    // Signal handling to exit process:
+    struct sigaction sa_exit;
+    sigemptyset(&sa_exit.sa_mask);
+    sa_exit.sa_handler = &handler_exit;
+    if (sigaction(SIGTERM, &sa_exit, NULL) < 0) printf("Could not catch SIGTERM.\n");
 
     // Log file:
     int fd_log = creat("./logs/world.txt", 0666);
@@ -60,12 +71,10 @@ int main(int argc, char ** argv){
 
     // Buffer for messages:
     char buf[6];
-    char buf_x[64];
-    char buf_z[64];
-    int lbuf_x, lbuf_z;
+    char log_msg[64];
 
     // Main loop:
-    while(1){
+    while(!finish){
 
         // Create the set of read fds:
         FD_ZERO(&rfds);
@@ -83,7 +92,6 @@ int main(int argc, char ** argv){
             // Write to log file:
             time_t now = time(NULL);
             struct tm *timenow = localtime(&now);
-            char log_msg[64];
             int length = strftime(log_msg, 64, "[%H:%M:%S]: ", timenow);
             if (write(fd_log, log_msg, length) != length) perror("Error writing in log");
 
@@ -93,8 +101,8 @@ int main(int argc, char ** argv){
                 ee_x = rand_err(ee_x);
 
                 // Write to log file:
-                lbuf_x = snprintf(buf_x, 64, "Received x = %s, generated x = %.2f\n", buf, ee_x);
-                if (write(fd_log, buf_x, lbuf_x) != lbuf_x) perror("Error writing in log");
+                length = snprintf(log_msg, 64, "Received x = %s, generated x = %.2f\n", buf, ee_x);
+                if (write(fd_log, log_msg, length) != length) perror("Error writing in log");
 
                 // Write to inspection console:
                 sprintf(buf, "%.2f", ee_x);
@@ -106,8 +114,8 @@ int main(int argc, char ** argv){
                 ee_z = rand_err(ee_z);
 
                 // Write to log file:
-                lbuf_z = snprintf(buf_z, 64, "Received z = %s, generated z = %.2f\n", buf, ee_z);
-                if (write(fd_log, buf_z, lbuf_z) != lbuf_z) perror("Error writing in log");
+                length = snprintf(log_msg, 64, "Received z = %s, generated z = %.2f\n", buf, ee_z);
+                if (write(fd_log, log_msg, length) != length) perror("Error writing in log");
 
                 // Write to inspection console:
                 sprintf(buf, "%.2f", ee_z);
@@ -117,5 +125,18 @@ int main(int argc, char ** argv){
         } 
 
     }
+
+    // Write to log file:
+    time_t now = time(NULL);
+    struct tm *timenow = localtime(&now);
+    int length = strftime(log_msg, 64, "[%H:%M:%S]: Exited succesfully.\n", timenow);
+    if (write(fd_log, log_msg, length) != length) return -1;
+
+    // Terminate:
+    close(fd_insx);
+    close(fd_insz);
+    close(fd_log);
+    close(fd_mx);
+    close(fd_mz);
     return 0;
 }
