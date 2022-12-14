@@ -3,7 +3,14 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <sys/wait.h>
+#include <dirent.h>
+#include <signal.h>
+#include <sys/stat.h>
+#include <time.h>
 
+#define INTIME 10 // Time of inactivity in seconds
+
+int finished = 0;
 
 int spawn(const char * program, char * arg_list[]) {
 
@@ -25,7 +32,24 @@ int spawn(const char * program, char * arg_list[]) {
   }
 }
 
+void handler_exit(int sig) {
+  finished = 1;
+}
+
 int main() {
+
+  // Signal handling to exit process:
+  struct sigaction sa_exit;
+  sigemptyset(&sa_exit.sa_mask);
+  sa_exit.sa_handler = &handler_exit;
+  sa_exit.sa_flags = SA_RESTART;
+  if (sigaction(SIGTERM, &sa_exit, NULL) < 0) printf("Could not catch SIGTERM.\n");
+  if (sigaction(SIGHUP, &sa_exit, NULL) < 0) printf("Could not catch SIGHUP.\n");
+  if (sigaction(SIGINT, &sa_exit, NULL) < 0) printf("Could not catch SIGINT.\n");
+
+  // -------------------------------------------------------------------------
+  //                          SPAWN PROCESSES
+  // -------------------------------------------------------------------------
 
   char * arg_list_command[] = { "/usr/bin/konsole", "-e", "./bin/command", NULL };
   char * arg_list_motorx[] = {"./bin/motorx", NULL };
@@ -55,25 +79,72 @@ int main() {
   pid_t pid_world = spawn("./bin/world", arg_list_world);
   if (pid_world < 0) printf("Error spawning world");
 
-  // Add PIDs of cmd and insp to watchdog arguments:
-  sprintf(buf1, "%d", pid_cmd);
-  sprintf(buf2, "%d", pid_insp);
-  char * arg_list_watchdog[] = {"./bin/watchdog", buf1, buf2, NULL };
+  // ---------------------------------------------------------------------------
+  //                        PERFORM WATCHDOG DUTIES
+  // ---------------------------------------------------------------------------
 
-  pid_t pid_watch = spawn("./bin/watchdog", arg_list_watchdog);
-  if (pid_insp < 0) printf("Error spawning watchdog");
-
-  // Wait only for the termination of the konsoles:
   int status;
-  waitpid(pid_cmd, &status, 0);
-  waitpid(pid_insp, &status, 0);
+  int inactivity_times[10];
 
-  // After, end programs in bg:
+  // Main loop:
+  while (1) {
+    pid_t wcmd = waitpid(pid_cmd, &status, WNOHANG);
+    pid_t wins = waitpid(pid_insp, &status, WNOHANG);
+
+    if (wcmd > 0 && wins > 0) break; // Both processes finished --> exit loop
+
+    // Finish routine:
+    if (finished) {
+      kill(pid_cmd, SIGTERM);
+      kill(pid_insp, SIGTERM);
+      break;
+    }
+
+    // Access log files:
+
+    DIR *directory;
+    struct dirent *entry;
+
+    directory = opendir("./logs");
+
+    if (directory == NULL) {
+      printf("Error opening directory.\n");
+      finished = 1;
+      continue;
+    }
+
+    int index = 0;
+    time_t now = time(NULL);
+
+    while ((entry = readdir(directory)) != NULL) {
+      if (entry->d_type == DT_REG) {
+        struct stat buf;
+        char filename[512];
+        sprintf(filename, "./logs/%s", entry->d_name);
+        if (stat(filename, &buf) < 0) perror("Error obtaining stats");
+        struct timespec mtime = buf.st_mtim;
+        int in_time = now - mtime.tv_sec;
+        inactivity_times[index++] = in_time;
+      }
+    }
+
+    // Check for inactivity:
+    finished = 1;
+    for (int i = 0; i < index; i++) {
+      if (inactivity_times[i] < INTIME) {
+        finished = 0;
+        break;
+      }
+    }
+    
+  }
+  
+
+  // After loop, end programs in bg:
   kill(pid_mx, SIGTERM);
   kill(pid_mz, SIGTERM);
   kill(pid_world, SIGTERM);
-  kill(pid_watch, SIGTERM);
-  
+    
   printf ("\nMain program exiting with status %d\n", status);
   return 0;
 }

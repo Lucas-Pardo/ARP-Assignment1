@@ -8,6 +8,7 @@
 #include <fcntl.h>
 #include <sys/select.h>
 #include <signal.h>
+#include <errno.h>
 
 #define SIZE_MSG 3
 #define DT 25000 // Time in usec (40 Hz)
@@ -65,12 +66,10 @@ int main(int argc, char const *argv[])
     int fd_log = creat("./logs/ins.txt", 0666);
 
     // Paths for fifos:
-    char * watch_fifo = "./tmp/watch_ins";
     char * worldx_fifo = "./tmp/worldx_ins";
     char * worldz_fifo = "./tmp/worldz_ins";
 
     // Create fifos:
-    mkfifo(watch_fifo, 0666);
     mkfifo(worldx_fifo, 0666);
     mkfifo(worldz_fifo, 0666);
 
@@ -81,8 +80,6 @@ int main(int argc, char const *argv[])
     if (fd_worldx < 0) perror("Error opening worldx-ins fifo");
     int fd_worldz = open(worldz_fifo, O_RDONLY);
     if (fd_worldz < 0) perror("Error opening worldz-ins fifo");
-    int fd_watch = open(watch_fifo, O_WRONLY);
-    if (fd_watch < 0) perror("Error opening watch-ins fifo");
 
     // Buffers for msgs:
     char buf[2];
@@ -130,8 +127,6 @@ int main(int argc, char const *argv[])
                     int length = strftime(log_msg, 64, "[%H:%M:%S]: Pressed STOP button.\n", timenow);
                     if (write(fd_log, log_msg, length) != length) perror("Error writing in log");
 
-                    // Send ALIVE signal to watchdog:
-                    if (write(fd_watch, "01", SIZE_MSG) != SIZE_MSG) perror("Error writing in ins-watch fifo");
                 }
 
                 // RESET button pressed
@@ -146,8 +141,6 @@ int main(int argc, char const *argv[])
                     int length = strftime(log_msg, 64, "[%H:%M:%S]: Pressed RESET button.\n", timenow);
                     if (write(fd_log, log_msg, length) != length) perror("Error writing in log");
 
-                    // Send ALIVE signal to watchdog:
-                    if (write(fd_watch, "01", SIZE_MSG) != SIZE_MSG) perror("Error writing in ins-watch fifo");
                 }
             }
         } 
@@ -162,14 +155,14 @@ int main(int argc, char const *argv[])
         tv.tv_usec = DT;
 
         retval = select(fd_worldz + 1, &rfds, NULL, NULL, &tv);
-        if (retval < 0) perror("Error in select");
+        if (retval < 0 && errno != EINTR) perror("Error in select");
         else if (retval) {
             if (FD_ISSET(fd_worldx, &rfds)){
                 if (read(fd_worldx, position_buf, 7) < 0) perror("Error reading from worldx-ins fifo");
                 sscanf(position_buf, "%f", &ee_x);
             }
             if (FD_ISSET(fd_worldz, &rfds)){
-                if (read(fd_worldz, position_buf, 7) < 0) perror("Error reading from worlz-ins fifo");
+                if (read(fd_worldz, position_buf, 7) < 0) perror("Error reading from worldz-ins fifo");
                 sscanf(position_buf, "%f", &ee_z);
             }
         } 
@@ -205,7 +198,6 @@ int main(int argc, char const *argv[])
     
     // Terminate
     close(fd_log);
-    close(fd_watch);
     close(fd_worldx);
     close(fd_worldz);
     endwin();

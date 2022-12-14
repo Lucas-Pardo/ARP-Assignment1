@@ -41,12 +41,10 @@ int main(int argc, char const *argv[])
     // Paths for fifos:
     char * mx_fifo = "./tmp/cmd_mx";
     char * mz_fifo = "./tmp/cmd_mz";
-    char * watch_fifo = "./tmp/watch_cmd";
 
     // Create fifos:
     mkfifo(mx_fifo, 0666);
     mkfifo(mz_fifo, 0666);
-    mkfifo(watch_fifo, 0666);
 
     sleep(1);
 
@@ -55,8 +53,6 @@ int main(int argc, char const *argv[])
     if (fd_mx < 0) perror("Error opening cmd-mx fifo");
     int fd_mz = open(mz_fifo, O_WRONLY);
     if (fd_mz < 0) perror("Error opening cmd-mz fifo");
-    int fd_watch = open(watch_fifo, O_WRONLY);
-    if (fd_watch < 0) perror("Error opening watch-cmd fifo");
 
     // Buffers for fifo communication:
     const char inc[] = "01";
@@ -101,8 +97,6 @@ int main(int argc, char const *argv[])
                     int length = strftime(log_msg, 64, "[%H:%M:%S]: Pressed velocity decrease of motor X.\n", timenow);
                     if (write(fd_log, log_msg, length) != length) perror("Error writing in log");
                     
-                    // Send ALIVE signal to watchdog:
-                    if (write(fd_watch, inc, SIZE_MSG) != SIZE_MSG) perror("Error writing in cmd-watch fifo");
                 }
 
                 // Vx++ button pressed
@@ -117,8 +111,6 @@ int main(int argc, char const *argv[])
                     int length = strftime(log_msg, 64, "[%H:%M:%S]: Pressed velocity increase of motor X.\n", timenow);
                     if (write(fd_log, log_msg, length) != length) perror("Error writing in log");
 
-                    // Send ALIVE signal to watchdog:
-                    if (write(fd_watch, inc, SIZE_MSG) != SIZE_MSG) perror("Error writing in cmd-watch fifo");
                 }
 
                 // Vx stop button pressed
@@ -133,8 +125,6 @@ int main(int argc, char const *argv[])
                     int length = strftime(log_msg, 64, "[%H:%M:%S]: Pressed velocity stop of motor X.\n", timenow);
                     if (write(fd_log, log_msg, length) != length) perror("Error writing in log");
 
-                    // Send ALIVE signal to watchdog:
-                    if (write(fd_watch, inc, SIZE_MSG) != SIZE_MSG) perror("Error writing in cmd-watch fifo");
                 }
 
                 // Vz-- button pressed
@@ -149,8 +139,6 @@ int main(int argc, char const *argv[])
                     int length = strftime(log_msg, 64, "[%H:%M:%S]: Pressed velocity decrease of motor Z.\n", timenow);
                     if (write(fd_log, log_msg, length) != length) perror("Error writing in log");
 
-                    // Send ALIVE signal to watchdog:
-                    if (write(fd_watch, inc, SIZE_MSG) != SIZE_MSG) perror("Error writing in cmd-watch fifo");
                 }
 
                 // Vz++ button pressed
@@ -165,8 +153,6 @@ int main(int argc, char const *argv[])
                     int length = strftime(log_msg, 64, "[%H:%M:%S]: Pressed velocity increase of motor Z.\n", timenow);
                     if (write(fd_log, log_msg, length) != length) perror("Error writing in log");
 
-                    // Send ALIVE signal to watchdog:
-                    if (write(fd_watch, inc, SIZE_MSG) != SIZE_MSG) perror("Error writing in cmd-watch fifo");
                 }
 
                 // Vz stop button pressed
@@ -181,8 +167,6 @@ int main(int argc, char const *argv[])
                     int length = strftime(log_msg, 64, "[%H:%M:%S]: Pressed velocity stop of motor Z.\n", timenow);
                     if (write(fd_log, log_msg, length) != length) perror("Error writing in log");
 
-                    // Send ALIVE signal to watchdog:
-                    if (write(fd_watch, inc, SIZE_MSG) != SIZE_MSG) perror("Error writing in cmd-watch fifo");
                 }
             }
         }
@@ -201,7 +185,6 @@ int main(int argc, char const *argv[])
     close(fd_log);
     close(fd_mx);
     close(fd_mz);
-    close(fd_watch);
     endwin();
     return 0;
 }

@@ -58,20 +58,16 @@ int main(int argc, char **argv){
     // Paths for fifos:
     char * cmd_fifo = "./tmp/cmd_mz";
     char * world_fifo = "./tmp/world_mz";
-    char * watch_fifo = "./tmp/watch_mz";
 
     // Create fifos:
     mkfifo(cmd_fifo, 0666);
     mkfifo(world_fifo, 0666);
-    mkfifo(watch_fifo, 0666);
 
     // Open fifos:
     int fd_cmd = open(cmd_fifo, O_RDONLY);
     if (fd_cmd < 0) perror("Error opening cmd-mz fifo");
     int fd_world = open(world_fifo, O_WRONLY);
     if (fd_world < 0) perror("Error opening world-mz fifo");
-    int fd_watch = open(watch_fifo, O_WRONLY);
-    if (fd_watch < 0) perror("Error opening watch-mz fifo");
 
     // Variables for the select():
     fd_set rfds;
@@ -100,7 +96,7 @@ int main(int argc, char **argv){
         tv.tv_sec = 0;
         tv.tv_usec = DT;
 
-        retval = select(fd_watch + 1, &rfds, NULL, NULL, &tv);
+        retval = select(fd_world + 1, &rfds, NULL, NULL, &tv);
         if (retval < 0 && errno != EINTR) perror("Error in select");
         else if (retval > 0) {
             if (read(fd_cmd, buf, SIZE_MSG) < 0) perror("Error reading from cmd-mz fifo");
@@ -138,8 +134,6 @@ int main(int argc, char **argv){
             length = snprintf(log_msg, 64, "Current position x = %.2f\n", zhat);
             if (write(fd_log, log_msg, length) != length) perror("Error writing in log");
                 
-            // Send ALIVE signal to watchdog:
-            if (write(fd_watch, "01", SIZE_MSG) != SIZE_MSG) perror("Error writing in mz-watch fifo");
         }
     }
 
@@ -152,7 +146,6 @@ int main(int argc, char **argv){
     // Terminate:
     close(fd_cmd);
     close(fd_log);
-    close(fd_watch);
     close(fd_world);
     return 0;
 }
