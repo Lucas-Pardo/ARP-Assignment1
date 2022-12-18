@@ -7,6 +7,7 @@
 #include <fcntl.h>
 #include <time.h>
 #include <sys/select.h>
+#include <errno.h>
 
 #define ERROR 0.05 // 5% error
 #define DT 25000 // Time in usec (40 Hz)
@@ -49,6 +50,8 @@ int main(int argc, char ** argv){
     mkfifo(insx_fifo, 0666);
     mkfifo(insz_fifo, 0666);
 
+    sleep(1);
+
     // Open fifos:
     int fd_mx = open(mx_fifo, O_RDONLY);
     if (fd_mx < 0) perror("Error opening world-mx fifo");
@@ -86,7 +89,7 @@ int main(int argc, char ** argv){
         tv.tv_usec = DT;
 
         retval = select(fd_insz + 1, &rfds, NULL, NULL, &tv);
-        if (retval < 0) perror("Error in select");
+        if (retval < 0 && errno != EINTR) perror("Error in select (world)");
         else if (retval) {
 
             // Write to log file:

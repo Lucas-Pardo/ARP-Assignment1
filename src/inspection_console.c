@@ -8,17 +8,21 @@
 #include <fcntl.h>
 #include <sys/select.h>
 #include <signal.h>
+#include <errno.h>
 
 #define SIZE_MSG 3
 #define DT 25000 // Time in usec (40 Hz)
 
 int finish = 0;
+int reset = 0;
 
-int sr_function(int pid_mx, int pid_mz, int r) {
+int sr_function(int pid_mx, int pid_mz, int pid_cmd, int r) {
     if (r) {
-        // Send RESET signal to both motors:
+        // Send RESET signal to both motors and cmd:
         if (kill(pid_mx, SIGUSR2) < 0) return -1;
         if (kill(pid_mz, SIGUSR2) < 0) return -1;
+        if (kill(pid_cmd, SIGUSR2) < 0) return -1;
+        reset = 1;
     } else {
         // Send STOP signal to both motors:
         if (kill(pid_mx, SIGUSR1) < 0) return -1;
@@ -52,13 +56,14 @@ int main(int argc, char const *argv[])
     init_console_ui();
 
     // Get PIDs:
-    int pid_mx, pid_mz;
-    if (argc != 3) {
-        printf("Wrong number of arguments: pid_mx pid_mz");
-        return -1;
+    int pid_mx, pid_mz, pid_cmd;
+    if (argc != 4) {
+        printf("Wrong number of arguments: pid_mx pid_mz pid_cmd");
+        return 1;
     } else {
         sscanf(argv[1], "%d", &pid_mx);
         sscanf(argv[2], "%d", &pid_mz);
+        sscanf(argv[3], "%d", &pid_cmd);
     }
 
     // Log file:
@@ -122,7 +127,7 @@ int main(int argc, char const *argv[])
                 if(check_button_pressed(stp_button, &event)) {
 
                     // Write command to motors:
-                    if (sr_function(pid_mx, pid_mz, 0) < 0) printf("Error in sr_function");
+                    if (sr_function(pid_mx, pid_mz, pid_cmd, 0) < 0) printf("Error in sr_function");
 
                     // Write command to log file:
                     time_t now = time(NULL);
@@ -138,7 +143,7 @@ int main(int argc, char const *argv[])
                 else if(check_button_pressed(rst_button, &event)) {
 
                     // Write command to motors:
-                    if (sr_function(pid_mx, pid_mz, 1) < 0) printf("Error in sr_function");
+                    if (sr_function(pid_mx, pid_mz, pid_cmd, 1) < 0) printf("Error in sr_function");
 
                     // Write command to log file:
                     time_t now = time(NULL);
@@ -162,7 +167,7 @@ int main(int argc, char const *argv[])
         tv.tv_usec = DT;
 
         retval = select(fd_worldz + 1, &rfds, NULL, NULL, &tv);
-        if (retval < 0) perror("Error in select");
+        if (retval < 0 && errno != EINTR) perror("Error in select (insp)");
         else if (retval) {
             if (FD_ISSET(fd_worldx, &rfds)){
                 if (read(fd_worldx, position_buf, 7) < 0) perror("Error reading from worldx-ins fifo");
@@ -173,6 +178,11 @@ int main(int argc, char const *argv[])
                 sscanf(position_buf, "%f", &ee_z);
             }
         } 
+
+        if (ee_x <= 0 && ee_z <= 0 && reset) {
+            if (kill(pid_cmd, SIGUSR2) < 0) perror("Error sending signal to cmd");
+            reset = 0;
+        }
         
         // To be commented in final version...
         // switch (cmd)

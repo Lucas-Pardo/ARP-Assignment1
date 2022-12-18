@@ -101,7 +101,7 @@ int main(int argc, char **argv){
         tv.tv_usec = DT;
 
         retval = select(fd_watch + 1, &rfds, NULL, NULL, &tv);
-        if (retval < 0 && errno != EINTR) perror("Error in select");
+        if (retval < 0 && errno != EINTR) perror("Error in select (mz)");
         else if (retval > 0) {
             if (read(fd_cmd, buf, SIZE_MSG) < 0) perror("Error reading from cmd-mz fifo");
             sscanf(buf, "%d", &vel);
@@ -110,7 +110,7 @@ int main(int argc, char **argv){
             } else {
                 v += vel * VEL_INC;
             }
-            printf("vz: %f\n", v);
+            // printf("vz: %f\n", v);
         } 
 
         // Reset process:

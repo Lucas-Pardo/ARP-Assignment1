@@ -1,3 +1,1 @@
-[19:16:51]: Pressed RESET button.
-[19:17:03]: Pressed RESET button.
-[19:17:08]: Exited succesfully.
+[13:36:30]: Pressed RESET button.

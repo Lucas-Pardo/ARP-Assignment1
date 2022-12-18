@@ -12,6 +12,11 @@
 #define DT 25000 // Time in usec (40 Hz)
 
 int finish = 0;
+int reset = 0;
+
+void signal_handler(int sig) {
+    reset = !reset;
+}
 
 void handler_exit(int sig) {
     finish = 1;
@@ -19,6 +24,13 @@ void handler_exit(int sig) {
 
 int main(int argc, char const *argv[])
 {
+
+    // Signal handler:
+    struct sigaction sa;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_handler = &signal_handler;
+    sa.sa_flags = SA_RESTART;
+    if (sigaction(SIGUSR2, &sa, NULL) < 0) printf("Could not catch SIGUSR2\n");
 
     // Signal handling to exit process:
     struct sigaction sa_exit;
@@ -84,7 +96,7 @@ int main(int argc, char const *argv[])
             }
         }
         // Else if mouse has been pressed
-        else if(cmd == KEY_MOUSE) {
+        else if(cmd == KEY_MOUSE && !reset) {
 
             // Check which button has been pressed...
             if(getmouse(&event) == OK) {
@@ -188,7 +200,7 @@ int main(int argc, char const *argv[])
         }
 
         refresh();
-        nanosleep(&tim, NULL);
+        if (nanosleep(&tim, NULL) < 0) perror("Error sleeping");
 	}
 
     // Write to log file:

@@ -37,23 +37,24 @@ int main() {
   if (pid_mx < 0) printf("Error spawning motorx");
   pid_t pid_mz = spawn("./bin/motorz", arg_list_motorz);
   if (pid_mz < 0) printf("Error spawning motorz");
+  pid_t pid_cmd = spawn("/usr/bin/konsole", arg_list_command);
+  if (pid_cmd < 0) printf("Error spawning command");
+  pid_t pid_world = spawn("./bin/world", arg_list_world);
+  if (pid_world < 0) printf("Error spawning world");
 
   // printf("PID motor x: %d\n", pid_mx);
   // printf("PID motor z: %d\n", pid_mz);
 
   // Add the motors pids as arguments for inspection console:
-  char buf1[10], buf2[10];
+  char buf1[10], buf2[10], buf3[10];
   sprintf(buf1, "%d", pid_mx);
   sprintf(buf2, "%d", pid_mz);
-  char * arg_list_inspection[] = { "/usr/bin/konsole", "-e", "./bin/inspection", buf1, buf2, NULL };
+  sprintf(buf3, "%d", pid_cmd);
+  char * arg_list_inspection[] = { "/usr/bin/konsole", "-e", "./bin/inspection", buf1, buf2, buf3, NULL };
 
 
   pid_t pid_insp = spawn("/usr/bin/konsole", arg_list_inspection);
   if (pid_insp < 0) printf("Error spawning inspection");
-  pid_t pid_cmd = spawn("/usr/bin/konsole", arg_list_command);
-  if (pid_cmd < 0) printf("Error spawning command");
-  pid_t pid_world = spawn("./bin/world", arg_list_world);
-  if (pid_world < 0) printf("Error spawning world");
 
   // Add PIDs of cmd and insp to watchdog arguments:
   sprintf(buf1, "%d", pid_cmd);

@@ -9,7 +9,7 @@
 #include <time.h>
 #include <errno.h>
 
-#define KILLTIME 10*1e6 // Time in usec
+#define KILLTIME 20*1e6 // Time in usec
 #define SIZE_MSG 3
 #define DT 25000 // Time in usec (40 Hz)
 
@@ -139,7 +139,7 @@ int main(int argc, char ** argv){
         tv.tv_usec = DT;
 
         retval = select(fd_mz + 1, &rfds, NULL, NULL, &tv);
-        if (retval < 0 && errno != EINTR) perror("Error in select");
+        if (retval < 0 && errno != EINTR) perror("Error in select (watch)");
         else if (retval) {
             if (FD_ISSET(fd_cmd, &rfds)){
                 if (read(fd_cmd, buf, SIZE_MSG) < 0) perror("Error reading from cmd-watch fifo");
@@ -210,7 +210,7 @@ int main(int argc, char ** argv){
             if (write_log(fd_log, 3, 0) < 0) perror("Error writing to log file");
         }
 
-        // Reset signal due to inactivity time:
+        // Terminate consoles due to inactivity time:
         if (cmd_status && ins_status && mx_status && mz_status) {
             kill(pid_cmd, SIGTERM);
             kill(pid_ins, SIGTERM);
