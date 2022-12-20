@@ -19,6 +19,7 @@
 
 int reset = 0;
 int finish = 0;
+int status = 0;
 
 // Current velocity:
 float v = 0;
@@ -67,11 +68,11 @@ int main(int argc, char **argv){
 
     // Open fifos:
     int fd_cmd = open(cmd_fifo, O_RDONLY);
-    if (fd_cmd < 0) perror("Error opening cmd-mz fifo");
+    if (fd_cmd < 0 && errno != EINTR) perror("Error opening cmd-mz fifo");
     int fd_world = open(world_fifo, O_WRONLY);
-    if (fd_world < 0) perror("Error opening world-mz fifo");
+    if (fd_world < 0 && errno != EINTR) perror("Error opening world-mz fifo");
     int fd_watch = open(watch_fifo, O_WRONLY);
-    if (fd_watch < 0) perror("Error opening watch-mz fifo");
+    if (fd_watch < 0 && errno != EINTR) perror("Error opening watch-mz fifo");
 
     // Variables for the select():
     fd_set rfds;
@@ -103,7 +104,7 @@ int main(int argc, char **argv){
         retval = select(fd_watch + 1, &rfds, NULL, NULL, &tv);
         if (retval < 0 && errno != EINTR) perror("Error in select (mz)");
         else if (retval > 0) {
-            if (read(fd_cmd, buf, SIZE_MSG) < 0) perror("Error reading from cmd-mz fifo");
+            if (read(fd_cmd, buf, SIZE_MSG) < 0 && errno != EINTR) perror("Error reading from cmd-mz fifo");
             sscanf(buf, "%d", &vel);
             if (vel == 0) {
                 v = 0;
@@ -128,18 +129,18 @@ int main(int argc, char **argv){
                 }
             }
             sprintf(z_buf, "%.2f", zhat);
-            if (write(fd_world, z_buf, 7) < 0) perror("Error writing to world-mz fifo");
+            if (write(fd_world, z_buf, 7) < 0 && errno != EINTR) perror("Error writing to world-mz fifo");
             
             // Write to log file:
             time_t now = time(NULL);
             struct tm *timenow = localtime(&now);
             int length = strftime(log_msg, 64, "[%H:%M:%S]: ", timenow);
-            if (write(fd_log, log_msg, length) != length) perror("Error writing in log");
-            length = snprintf(log_msg, 64, "Current position x = %.2f\n", zhat);
-            if (write(fd_log, log_msg, length) != length) perror("Error writing in log");
+            if (write(fd_log, log_msg, length) < 0 && errno != EINTR) perror("Error writing in log (mz)");
+            length = snprintf(log_msg, 64, "Current position z = %.2f\n", zhat);
+            if (write(fd_log, log_msg, length) < 0 && errno != EINTR) perror("Error writing in log (mz)");
                 
             // Send ALIVE signal to watchdog:
-            if (write(fd_watch, "01", SIZE_MSG) != SIZE_MSG) perror("Error writing in mz-watch fifo");
+            if (write(fd_watch, "01", SIZE_MSG) < 0 && errno != EINTR) perror("Error writing in mz-watch fifo");
         }
     }
 
@@ -147,12 +148,12 @@ int main(int argc, char **argv){
     time_t now = time(NULL);
     struct tm *timenow = localtime(&now);
     int length = strftime(log_msg, 64, "[%H:%M:%S]: Exited succesfully.\n", timenow);
-    if (write(fd_log, log_msg, length) != length) return -1;
+    if (write(fd_log, log_msg, length) != length) printf("Could not write exit msg.\n");
 
     // Terminate:
     close(fd_cmd);
     close(fd_log);
     close(fd_watch);
     close(fd_world);
-    return 0;
+    return status;
 }

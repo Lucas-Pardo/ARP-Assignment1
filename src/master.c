@@ -57,9 +57,8 @@ int main() {
   if (pid_insp < 0) printf("Error spawning inspection");
 
   // Add PIDs of cmd and insp to watchdog arguments:
-  sprintf(buf1, "%d", pid_cmd);
   sprintf(buf2, "%d", pid_insp);
-  char * arg_list_watchdog[] = {"./bin/watchdog", buf1, buf2, NULL };
+  char * arg_list_watchdog[] = {"./bin/watchdog", buf3, buf2, NULL };
 
   pid_t pid_watch = spawn("./bin/watchdog", arg_list_watchdog);
   if (pid_insp < 0) printf("Error spawning watchdog");

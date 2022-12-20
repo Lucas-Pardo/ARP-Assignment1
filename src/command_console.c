@@ -7,6 +7,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <time.h>
+#include <errno.h>
 
 #define SIZE_MSG 3
 #define DT 25000 // Time in usec (40 Hz)
@@ -64,11 +65,11 @@ int main(int argc, char const *argv[])
 
     // Open fifos:
     int fd_mx = open(mx_fifo, O_WRONLY);
-    if (fd_mx < 0) perror("Error opening cmd-mx fifo");
+    if (fd_mx < 0 && errno != EINTR) perror("Error opening cmd-mx fifo");
     int fd_mz = open(mz_fifo, O_WRONLY);
-    if (fd_mz < 0) perror("Error opening cmd-mz fifo");
+    if (fd_mz < 0 && errno != EINTR) perror("Error opening cmd-mz fifo");
     int fd_watch = open(watch_fifo, O_WRONLY);
-    if (fd_watch < 0) perror("Error opening watch-cmd fifo");
+    if (fd_watch < 0 && errno != EINTR) perror("Error opening watch-cmd fifo");
 
     // Buffers for fifo communication:
     const char inc[] = "01";
@@ -105,109 +106,109 @@ int main(int argc, char const *argv[])
                 if(check_button_pressed(vx_decr_btn, &event)) {
 
                     // Write command to motor:
-                    if (write(fd_mx, dec, SIZE_MSG) != SIZE_MSG) perror("Error writing in cmd-mx fifo");
+                    if (write(fd_mx, dec, SIZE_MSG) < 0 && errno != EINTR) perror("Error writing in cmd-mx fifo");
 
                     // Write command to log file:
                     time_t now = time(NULL);
                     struct tm *timenow = localtime(&now);
                     int length = strftime(log_msg, 64, "[%H:%M:%S]: Pressed velocity decrease of motor X.\n", timenow);
-                    if (write(fd_log, log_msg, length) != length) perror("Error writing in log");
+                    if (write(fd_log, log_msg, length) < 0 && errno != EINTR) perror("Error writing in log (cmd)");
                     
                     // Send ALIVE signal to watchdog:
-                    if (write(fd_watch, inc, SIZE_MSG) != SIZE_MSG) perror("Error writing in cmd-watch fifo");
+                    if (write(fd_watch, inc, SIZE_MSG) < 0 && errno != EINTR) perror("Error writing in cmd-watch fifo");
                 }
 
                 // Vx++ button pressed
                 else if(check_button_pressed(vx_incr_btn, &event)) {
 
                     // Write command to motor:
-                    if (write(fd_mx, inc, SIZE_MSG) != SIZE_MSG) perror("Error writing in cmd-mx fifo");
+                    if (write(fd_mx, inc, SIZE_MSG) < 0 && errno != EINTR) perror("Error writing in cmd-mx fifo");
 
                     // Write command to log file:
                     time_t now = time(NULL);
                     struct tm *timenow = localtime(&now);
                     int length = strftime(log_msg, 64, "[%H:%M:%S]: Pressed velocity increase of motor X.\n", timenow);
-                    if (write(fd_log, log_msg, length) != length) perror("Error writing in log");
+                    if (write(fd_log, log_msg, length) < 0 && errno != EINTR) perror("Error writing in log (cmd)");
 
                     // Send ALIVE signal to watchdog:
-                    if (write(fd_watch, inc, SIZE_MSG) != SIZE_MSG) perror("Error writing in cmd-watch fifo");
+                    if (write(fd_watch, inc, SIZE_MSG) < 0 && errno != EINTR) perror("Error writing in cmd-watch fifo");
                 }
 
                 // Vx stop button pressed
                 else if(check_button_pressed(vx_stp_button, &event)) {
                     
                     // Write command to motor:
-                    if (write(fd_mx, stop, SIZE_MSG) != SIZE_MSG) perror("Error writing in cmd-mx fifo");
+                    if (write(fd_mx, stop, SIZE_MSG) < 0 && errno != EINTR) perror("Error writing in cmd-mx fifo");
 
                     // Write command to log file:
                     time_t now = time(NULL);
                     struct tm *timenow = localtime(&now);
                     int length = strftime(log_msg, 64, "[%H:%M:%S]: Pressed velocity stop of motor X.\n", timenow);
-                    if (write(fd_log, log_msg, length) != length) perror("Error writing in log");
+                    if (write(fd_log, log_msg, length) < 0 && errno != EINTR) perror("Error writing in log (cmd)");
 
                     // Send ALIVE signal to watchdog:
-                    if (write(fd_watch, inc, SIZE_MSG) != SIZE_MSG) perror("Error writing in cmd-watch fifo");
+                    if (write(fd_watch, inc, SIZE_MSG) < 0 && errno != EINTR) perror("Error writing in cmd-watch fifo");
                 }
 
                 // Vz-- button pressed
                 else if(check_button_pressed(vz_decr_btn, &event)) {
 
                     // Write command to motor:
-                    if (write(fd_mz, dec, SIZE_MSG) != SIZE_MSG) perror("Error writing in cmd-mz fifo");
+                    if (write(fd_mz, dec, SIZE_MSG) < 0 && errno != EINTR) perror("Error writing in cmd-mz fifo");
 
                     // Write command to log file:
                     time_t now = time(NULL);
                     struct tm *timenow = localtime(&now);
                     int length = strftime(log_msg, 64, "[%H:%M:%S]: Pressed velocity decrease of motor Z.\n", timenow);
-                    if (write(fd_log, log_msg, length) != length) perror("Error writing in log");
+                    if (write(fd_log, log_msg, length) < 0 && errno != EINTR) perror("Error writing in log (cmd)");
 
                     // Send ALIVE signal to watchdog:
-                    if (write(fd_watch, inc, SIZE_MSG) != SIZE_MSG) perror("Error writing in cmd-watch fifo");
+                    if (write(fd_watch, inc, SIZE_MSG) < 0 && errno != EINTR) perror("Error writing in cmd-watch fifo");
                 }
 
                 // Vz++ button pressed
                 else if(check_button_pressed(vz_incr_btn, &event)) {
 
                     // Write command to motor:
-                    if (write(fd_mz, inc, SIZE_MSG) != SIZE_MSG) perror("Error writing in cmd-mz fifo");
+                    if (write(fd_mz, inc, SIZE_MSG) < 0 && errno != EINTR) perror("Error writing in cmd-mz fifo");
                     
                     // Write command to log file:
                     time_t now = time(NULL);
                     struct tm *timenow = localtime(&now);
                     int length = strftime(log_msg, 64, "[%H:%M:%S]: Pressed velocity increase of motor Z.\n", timenow);
-                    if (write(fd_log, log_msg, length) != length) perror("Error writing in log");
+                    if (write(fd_log, log_msg, length) < 0 && errno != EINTR) perror("Error writing in log (cmd)");
 
                     // Send ALIVE signal to watchdog:
-                    if (write(fd_watch, inc, SIZE_MSG) != SIZE_MSG) perror("Error writing in cmd-watch fifo");
+                    if (write(fd_watch, inc, SIZE_MSG) < 0 && errno != EINTR) perror("Error writing in cmd-watch fifo");
                 }
 
                 // Vz stop button pressed
                 else if(check_button_pressed(vz_stp_button, &event)) {
 
                     // Write command to motor:
-                    if (write(fd_mz, stop, SIZE_MSG) != SIZE_MSG) perror("Error writing in cmd-mz fifo");
+                    if (write(fd_mz, stop, SIZE_MSG) < 0 && errno != EINTR) perror("Error writing in cmd-mz fifo");
                     
                     // Write command to log file:
                     time_t now = time(NULL);
                     struct tm *timenow = localtime(&now);
                     int length = strftime(log_msg, 64, "[%H:%M:%S]: Pressed velocity stop of motor Z.\n", timenow);
-                    if (write(fd_log, log_msg, length) != length) perror("Error writing in log");
+                    if (write(fd_log, log_msg, length) < 0 && errno != EINTR) perror("Error writing in log (cmd)");
 
                     // Send ALIVE signal to watchdog:
-                    if (write(fd_watch, inc, SIZE_MSG) != SIZE_MSG) perror("Error writing in cmd-watch fifo");
+                    if (write(fd_watch, inc, SIZE_MSG) < 0 && errno != EINTR) perror("Error writing in cmd-watch fifo");
                 }
             }
         }
 
         refresh();
-        if (nanosleep(&tim, NULL) < 0) perror("Error sleeping");
+        if (nanosleep(&tim, NULL) < 0 && errno != EINTR) perror("Error sleeping (cmd)");
 	}
 
     // Write to log file:
     time_t now = time(NULL);
     struct tm *timenow = localtime(&now);
     int length = strftime(log_msg, 64, "[%H:%M:%S]: Exited succesfully.\n", timenow);
-    if (write(fd_log, log_msg, length) != length) printf("Could not write the msg.\n");
+    if (write(fd_log, log_msg, length) != length) printf("Could not write exit msg.\n");
 
     // Terminate
     close(fd_log);

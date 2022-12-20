@@ -133,7 +133,7 @@ int main(int argc, char ** argv){
     time_t now = time(NULL);
     struct tm *timenow = localtime(&now);
     int length = strftime(log_msg, 64, "[%H:%M:%S]: Exited succesfully.\n", timenow);
-    if (write(fd_log, log_msg, length) != length) return -1;
+    if (write(fd_log, log_msg, length) != length) printf("Could not write exit msg.\n");
 
     // Terminate:
     close(fd_insx);

@@ -108,7 +108,7 @@ int main(int argc, char ** argv){
     float in_time_mx = 0;
     float in_time_mz = 0;
 
-    // Log variables:
+    // Status variables:
     int cmd_status = 0;
     int ins_status = 0;
     int mx_status = 0;
@@ -223,7 +223,7 @@ int main(int argc, char ** argv){
     timenow = localtime(&now);
     log_msg[64];
     length = strftime(log_msg, 64, "[%H:%M:%S]: Exited succesfully.\n", timenow);
-    if (write(fd_log, log_msg, length) != length) printf("Could not write the msg.\n");
+    if (write(fd_log, log_msg, length) != length) printf("Could not write exit msg.\n");
 
     close(fd_cmd);
     close(fd_ins);
