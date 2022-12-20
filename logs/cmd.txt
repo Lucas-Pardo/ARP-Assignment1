@@ -1,8 +1,1 @@
-[18:30:10]: Pressed velocity increase of motor X.
-[18:30:15]: Pressed velocity increase of motor Z.
-[18:30:18]: Pressed velocity increase of motor Z.
-[18:30:28]: Pressed velocity stop of motor Z.
-[18:30:31]: Pressed velocity stop of motor X.
-[18:30:33]: Pressed velocity stop of motor Z.
-[18:30:34]: Pressed velocity stop of motor X.
-[18:30:55]: Exited succesfully.
+[18:18:28]: Exited succesfully.
