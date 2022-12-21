@@ -1,12 +1,4 @@
-[17:56:19]: Started watching.
-[17:56:30]: Inspection console is inactive.
-[17:56:34]: Command console is inactive.
-[17:56:35]: Command console is active.
-[17:56:37]: Inspection console is active.
-[17:56:47]: Inspection console is inactive.
-[17:57:05]: Inspection console is active.
-[17:57:33]: Command console is inactive.
-[17:57:35]: Motor X is inactive.
-[17:57:35]: Motor Z is inactive.
-[17:57:35]: Inspection console is inactive.
-[17:57:35]: Exited succesfully.
+[20:54:38]: Started watching.
+[20:54:49]: Inspection console is inactive.
+[20:54:51]: Inspection console is active.
+[20:54:59]: Exited succesfully.

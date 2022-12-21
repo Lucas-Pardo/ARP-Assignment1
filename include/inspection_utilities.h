@@ -28,7 +28,7 @@ int BTN_SIZE = 7;
 // Hoist structure variable
 HOIST hoist;
 // Ptrs to button windows
-WINDOW *stp_button, *rst_button;
+WINDOW *stp_button, *rst_button, *exit_button;
 // Mouse event var
 MEVENT event;
 // Container variable to draw random containers within the hoist's workspace
@@ -55,12 +55,14 @@ void make_hoist() {
 // Create button windows
 void make_buttons() {
 
-    int stp_button_startx = (COLS - 2 * BTN_SIZE - 5) / 2;
-    int rst_button_startx = (COLS - BTN_SIZE + 11) / 2;
+    int stp_button_startx = (COLS - 4 * BTN_SIZE - 4) / 2;
+    int rst_button_startx = (COLS - 3 * BTN_SIZE + 14) / 2;
+    int exit_button_startx = (COLS - BTN_SIZE + 24) / 2;
     int buttons_starty = 4;
 
     stp_button = newwin(BTN_SIZE / 2, BTN_SIZE, buttons_starty, stp_button_startx);
     rst_button = newwin(BTN_SIZE / 2, BTN_SIZE, buttons_starty, rst_button_startx);
+    exit_button = newwin(BTN_SIZE / 2, BTN_SIZE, buttons_starty, exit_button_startx);
 }
 
 // Utility methods to spawn random container within the hoist's workspace
@@ -193,6 +195,7 @@ void draw_buttons() {
 
     draw_btn(stp_button, 'S', 2);
     draw_btn(rst_button, 'R', 3);
+    draw_btn(exit_button, 'X', 4);
 }
 
 // Utility method to check if button has been pressed
@@ -234,6 +237,7 @@ void init_console_ui() {
     init_pair(1, COLOR_GREEN, COLOR_BLACK);
     init_pair(2, COLOR_WHITE, COLOR_RED);
     init_pair(3, COLOR_BLACK,   COLOR_YELLOW);
+    init_pair(4, COLOR_RED, COLOR_CYAN);
 
     // Initialize UI elements
     make_hoist();
@@ -283,6 +287,7 @@ void reset_console_ui() {
     // Free resources
     delwin(stp_button);
     delwin(rst_button);
+    delwin(exit_button);
 
     // Clear screen
     erase();

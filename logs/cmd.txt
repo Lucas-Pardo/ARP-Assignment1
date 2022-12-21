@@ -1,16 +1,12 @@
-[17:56:22]: Pressed velocity increase of motor X.
-[17:56:23]: Pressed velocity increase of motor X.
-[17:56:24]: Pressed velocity increase of motor Z.
-[17:56:24]: Pressed velocity increase of motor Z.
-[17:56:35]: Pressed velocity stop of motor X.
-[17:56:42]: Pressed velocity increase of motor X.
-[17:56:43]: Pressed velocity increase of motor X.
-[17:56:44]: Pressed velocity increase of motor Z.
-[17:56:44]: Pressed velocity increase of motor Z.
-[17:56:51]: Pressed velocity increase of motor X.
-[17:56:53]: Pressed velocity increase of motor X.
-[17:57:03]: Pressed velocity stop of motor X.
-[17:57:04]: Pressed velocity stop of motor Z.
-[17:57:13]: Pressed velocity increase of motor Z.
-[17:57:14]: Pressed velocity increase of motor X.
-[17:57:35]: Exited succesfully.
+[20:54:40]: Pressed velocity increase of motor X.
+[20:54:41]: Pressed velocity increase of motor X.
+[20:54:42]: Pressed velocity increase of motor Z.
+[20:54:43]: Pressed velocity increase of motor X.
+[20:54:44]: Pressed velocity increase of motor Z.
+[20:54:45]: Pressed velocity increase of motor X.
+[20:54:45]: Pressed velocity increase of motor X.
+[20:54:46]: Pressed velocity increase of motor X.
+[20:54:47]: Pressed velocity increase of motor X.
+[20:54:56]: Pressed velocity increase of motor X.
+[20:54:56]: Pressed velocity increase of motor Z.
+[20:54:59]: Exited succesfully.
