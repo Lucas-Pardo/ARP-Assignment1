@@ -165,7 +165,7 @@ int main(int argc, char **argv){
             }
             
             // Write to log file:
-            length = snprintf(log_msg, 64, "Current position x = %.2f\n", zhat);
+            length = snprintf(log_msg, 64, "Current position z = %.2f\n", zhat);
             if (write_log(fd_log, log_msg, length) < 0) perror("Error writing in log (mz)");
                 
         }
