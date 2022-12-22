@@ -15,8 +15,6 @@
 #define DT 25000 // Time in usec (40 Hz)
 #define MAXPOSITION 10 // Maximum position in z
 
-// TODO write status changes to a log file in ./logs
-
 int reset = 0;
 int finish = 0;
 
@@ -106,7 +104,7 @@ int main(int argc, char **argv){
             } else {
                 v += vel * VEL_INC;
             }
-            printf("vz: %f\n", v);
+            // printf("vz: %f\n", v);
         } 
 
         // Reset process:

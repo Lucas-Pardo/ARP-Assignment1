@@ -7,6 +7,7 @@
 #include <fcntl.h>
 #include <time.h>
 #include <sys/select.h>
+#include <errno.h>
 
 #define ERROR 0.05 // 5% error
 #define DT 25000 // Time in usec (40 Hz)
@@ -86,7 +87,7 @@ int main(int argc, char ** argv){
         tv.tv_usec = DT;
 
         retval = select(fd_insz + 1, &rfds, NULL, NULL, &tv);
-        if (retval < 0) perror("Error in select");
+        if (retval < 0 && errno != EINTR) perror("Error in select");
         else if (retval) {
 
             // Write to log file:

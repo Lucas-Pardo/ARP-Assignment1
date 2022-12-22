@@ -8,7 +8,8 @@
 #include <sys/stat.h>
 #include <time.h>
 
-#define INTIME 10 // Time of inactivity in seconds
+#define INTIME 30 // Time of inactivity in seconds
+#define DT 25000  // Time in usec (40 Hz)
 
 int finished = 0;
 
@@ -81,9 +82,12 @@ int main()
     if (entry->d_type == DT_REG)
     {
       sprintf(filename, "./logs/%s", entry->d_name);
-      if (unlink(filename) < 0) perror("Error deleting log files");
+      if (unlink(filename) < 0)
+        perror("Error deleting log files");
     }
   }
+
+  // Start spawning:
 
   char *arg_list_command[] = {"/usr/bin/konsole", "-e", "./bin/command", NULL};
   char *arg_list_motorx[] = {"./bin/motorx", NULL};
@@ -124,6 +128,14 @@ int main()
   int status;
   int inactivity_times[10];
 
+  // Time structure for sleeps:
+  struct timespec tim;
+  tim.tv_sec = 0;
+  tim.tv_nsec = DT * 1000;
+
+  // Give some time for processes to start:
+  sleep(4);
+
   // Main loop:
   while (1)
   {
@@ -142,16 +154,11 @@ int main()
     }
 
     // Access log files:
-
-    DIR *directory;
-    struct dirent *entry;
-
     directory = opendir("./logs");
 
     if (directory == NULL)
     {
       printf("Error opening directory.\n");
-      finished = 1;
       continue;
     }
 
@@ -163,7 +170,6 @@ int main()
       if (entry->d_type == DT_REG)
       {
         struct stat buf;
-        char filename[512];
         sprintf(filename, "./logs/%s", entry->d_name);
         if (stat(filename, &buf) < 0)
           perror("Error obtaining stats");
@@ -183,6 +189,7 @@ int main()
         break;
       }
     }
+    nanosleep(&tim, NULL);
   }
 
   // After loop, end programs in bg:
