@@ -36,6 +36,19 @@ int write_log(int fd_log, char *msg, int lmsg)
 
 int main(int argc, char const *argv[])
 {
+    // Send PID to master:
+    pid_t pid = getpid();
+    char *master_fifo = "./tmp/pid";
+    mkfifo(master_fifo, 0666);
+    int fd_master = open(master_fifo, O_WRONLY);
+    if (fd_master < 0 && errno != EINTR)
+        perror("Error opening ins-master fifo");
+    char buf2[10];
+    sprintf(buf2, "%d", pid);
+    if (write(fd_master, buf2, 10) < 0)
+        perror("Error writing to master fifo (ins)");
+    sleep(1);
+    close(fd_master);
 
     // Log file:
     int fd_log = creat("./logs/ins.txt", 0666);
@@ -52,15 +65,10 @@ int main(int argc, char const *argv[])
         if (write_log(fd_log, log_msg, length) < 0 && errno != EINTR)
             perror("Error writing to log (ins)");
     }
-    if (sigaction(SIGHUP, &sa_exit, NULL) < 0)
-    {
-        int length = snprintf(log_msg, 64, "Cannot catch SIGHUP.\n");
-        if (write_log(fd_log, log_msg, length) < 0 && errno != EINTR)
-            perror("Error writing to log (ins)");
-    }
 
     // End-effector coordinates
-    float ee_x, ee_z;
+    float ee_x = 0;
+    float ee_z = 0;
 
     // Utility variable to avoid trigger resize event on launch
     int first_resize = TRUE;
@@ -149,7 +157,7 @@ int main(int argc, char const *argv[])
                 if (check_button_pressed(stp_button, &event))
                 {
 
-                    // Send STOP signal to both motors:
+                    // Send RESET signal to both motors and cmd:
                     if (kill(pid_mx, SIGUSR1) < 0)
                     {
                         int length = snprintf(log_msg, 64, "Error sending signal to mx (ins): %d.\n", errno);
@@ -162,6 +170,13 @@ int main(int argc, char const *argv[])
                         if (write_log(fd_log, log_msg, length) < 0 && errno != EINTR)
                             perror("Error writing to log (ins)");
                     }
+                    if (kill(pid_cmd, SIGUSR1) < 0)
+                    {
+                        int length = snprintf(log_msg, 64, "Error sending signal to cmd (ins): %d.\n", errno);
+                        if (write_log(fd_log, log_msg, length) < 0 && errno != EINTR)
+                            perror("Error writing to log (ins)");
+                    }
+                    reset = 0;
 
                     // Write command to log file:
                     int length = snprintf(log_msg, 64, "Pressed STOP button.\n");
@@ -218,16 +233,7 @@ int main(int argc, char const *argv[])
 
                 // EXIT button pressed
                 else if (check_button_pressed(exit_button, &event))
-                {
-                    if (kill(pid_cmd, SIGTERM) < 0)
-                    {
-                        int length = snprintf(log_msg, 64, "Error sending signal to cmd (ins): %d.\n", errno);
-                        if (write_log(fd_log, log_msg, length) < 0 && errno != EINTR)
-                            perror("Error writing to log (ins)");
-                    }
-                    finish = 1;
                     break;
-                }
             }
         }
 
@@ -242,7 +248,7 @@ int main(int argc, char const *argv[])
 
         retval = select(fd_worldz + 1, &rfds, NULL, NULL, &tv);
         if (retval < 0 && errno != EINTR)
-            perror("Error in select (insp)");
+            perror("Error in select (ins)");
         else if (retval)
         {
             if (FD_ISSET(fd_worldx, &rfds))
@@ -301,6 +307,15 @@ int main(int argc, char const *argv[])
         update_console_ui(&ee_x, &ee_z);
     }
 
+    // Terminate command console:
+    if (kill(pid_cmd, SIGTERM) < 0)
+    {
+        int length = snprintf(log_msg, 64, "Error sending signal to cmd (ins): %d.\n", errno);
+        if (write_log(fd_log, log_msg, length) < 0 && errno != EINTR)
+            perror("Error writing to log (ins)");
+    }
+
+    // Send termination msg to watchdog:
     if (write(fd_watch, "01", SIZE_MSG) < 0)
     {
         int length = snprintf(log_msg, 64, "Error writing in ins-watch fifo: %d.\n", errno);
@@ -319,7 +334,5 @@ int main(int argc, char const *argv[])
     close(fd_worldx);
     close(fd_worldz);
     endwin();
-    // Send signal to master to signal the end of the process:
-    // kill(getppid(), SIGUSR2);
     return 0;
 }

@@ -18,7 +18,11 @@ int reset = 0;
 
 void signal_handler(int sig)
 {
-    reset = !reset;
+    if (sig == SIGUSR2) {
+        reset = !reset;
+    } else if (sig == SIGUSR1) {
+        reset = 0;
+    }
 }
 
 void handler_exit(int sig)
@@ -41,6 +45,18 @@ int write_log(int fd_log, char *msg, int lmsg)
 
 int main(int argc, char const *argv[])
 {
+    // Send PID to master:
+    pid_t pid = getpid();
+    char *master_fifo = "./tmp/pid";
+    mkfifo(master_fifo, 0666);
+    int fd_master = open(master_fifo, O_WRONLY);
+    if (fd_master < 0 && errno != EINTR)
+        perror("Error opening cmd-master fifo");
+    char buf[10];
+    sprintf(buf, "%d", pid);
+    if (write(fd_master, buf, 10) < 0) perror("Error writing to master fifo (cmd)");
+    sleep(1);
+    close(fd_master);
 
     // Log file:
     int fd_log = creat("./logs/cmd.txt", 0666);
@@ -58,6 +74,12 @@ int main(int argc, char const *argv[])
         if (write_log(fd_log, log_msg, length) < 0 && errno != EINTR)
             perror("Error writing to log (cmd)");
     }
+    if (sigaction(SIGUSR1, &sa, NULL) < 0)
+    {
+        int length = snprintf(log_msg, 64, "Cannot catch SIGUSR1.\n");
+        if (write_log(fd_log, log_msg, length) < 0 && errno != EINTR)
+            perror("Error writing to log (cmd)");
+    }
 
     // Signal handling to exit process:
     struct sigaction sa_exit;
@@ -67,12 +89,6 @@ int main(int argc, char const *argv[])
     if (sigaction(SIGTERM, &sa_exit, NULL) < 0)
     {
         int length = snprintf(log_msg, 64, "Cannot catch SIGTERM.\n");
-        if (write_log(fd_log, log_msg, length) < 0 && errno != EINTR)
-            perror("Error writing to log (cmd)");
-    }
-    if (sigaction(SIGHUP, &sa_exit, NULL) < 0)
-    {
-        int length = snprintf(log_msg, 64, "Cannot catch SIGHUP.\n");
         if (write_log(fd_log, log_msg, length) < 0 && errno != EINTR)
             perror("Error writing to log (cmd)");
     }
@@ -114,11 +130,6 @@ int main(int argc, char const *argv[])
     // Infinite loop
     while (!finish)
     {
-
-        // int length = snprintf(log_msg, 64, "Value of (reset, finish): (%d, %d).\n", reset, finish);
-        // if (write_log(fd_log, log_msg, length) < 0 && errno != EINTR)
-        //     perror("Error writing in log (cmd)");
-
         // Get mouse/resize commands in non-blocking mode...
         int cmd = getch();
 
@@ -313,10 +324,6 @@ int main(int argc, char const *argv[])
                 perror("Error writing in log (cmd)");
         }
     }
-
-    // int length = snprintf(log_msg, 64, "Value of (reset, finish): (%d, %d).\n", reset, finish);
-    // if (write_log(fd_log, log_msg, length) < 0 && errno != EINTR)
-    //     perror("Error writing in log (cmd)");
 
     if (write(fd_watch, inc, SIZE_MSG) < 0 && errno != EINTR)
     {

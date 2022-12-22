@@ -15,11 +15,8 @@
 #define DT 25000 // Time in usec (40 Hz)
 #define MAXPOSITION 40 // Maximum position in x
 
-// TODO write status changes to a log file in ./logs
-
 int reset = 0;
 int finish = 0;
-int status = 0;
 
 // Current velocity:
 float v = 0;
@@ -37,24 +34,57 @@ void handler_exit(int sig) {
     finish = 1;
 }
 
+int write_log(int fd_log, char *msg, int lmsg)
+{
+    char log_msg[64];
+    time_t now = time(NULL);
+    struct tm *timenow = localtime(&now);
+    int length = strftime(log_msg, 64, "[%H:%M:%S]: ", timenow);
+    if (write(fd_log, log_msg, length) < 0 && errno != EINTR)
+        return -1;
+    if (write(fd_log, msg, lmsg) < 0 && errno != EINTR)
+        return -1;
+    return 0;
+}
+
 int main(int argc, char **argv){
+
+    // Log file:
+    int fd_log = creat("./logs/motorx.txt", 0666);
+    char log_msg[64];
+    int length;
 
     // Signal handler:
     struct sigaction sa;
     sigemptyset(&sa.sa_mask);
     sa.sa_handler = &signal_handler;
     sa.sa_flags = SA_RESTART;
-    if (sigaction(SIGUSR1, &sa, NULL) < 0) printf("Could not catch SIGUSR1\n");
-    if (sigaction(SIGUSR2, &sa, NULL) < 0) printf("Could not catch SIGUSR2\n");
+    if (sigaction(SIGUSR1, &sa, NULL) < 0) {
+        length = snprintf(log_msg, 64, "Could not catch SIGUSR1: %d\n", errno);
+        if (write_log(fd_log, log_msg, length) < 0 && errno != EINTR)
+            perror("Error writing to log (mx)");
+    }
+    if (sigaction(SIGUSR2, &sa, NULL) < 0) {
+        length = snprintf(log_msg, 64, "Could not catch SIGUSR2: %d\n", errno);
+        if (write_log(fd_log, log_msg, length) < 0 && errno != EINTR)
+            perror("Error writing to log (mx)");
+    }
 
     // Signal handling to exit process:
     struct sigaction sa_exit;
     sigemptyset(&sa_exit.sa_mask);
     sa_exit.sa_handler = &handler_exit;
-    if (sigaction(SIGTERM, &sa_exit, NULL) < 0) printf("Could not catch SIGTERM.\n");
-
-    // Log file:
-    int fd_log = creat("./logs/motorx.txt", 0666);
+    sa_exit.sa_flags = SA_RESTART;
+    if (sigaction(SIGTERM, &sa_exit, NULL) < 0) {
+        length = snprintf(log_msg, 64, "Could not catch SIGTERM: %d\n", errno);
+        if (write_log(fd_log, log_msg, length) < 0 && errno != EINTR)
+            perror("Error writing to log (mx)");
+    }
+    if (sigaction(SIGPIPE, &sa_exit, NULL) < 0) {
+        length = snprintf(log_msg, 64, "Could not catch SIGPIPE: %d\n", errno);
+        if (write_log(fd_log, log_msg, length) < 0 && errno != EINTR)
+            perror("Error writing to log (mx)");
+    }
 
     // Paths for fifos:
     char * cmd_fifo = "./tmp/cmd_mx";
@@ -88,7 +118,6 @@ int main(int argc, char **argv){
     char buf[2];
     char x_buf[6] = "000000";
     int vel;
-    char log_msg[64];
 
     // Main loop:
     while(!finish){
@@ -104,7 +133,11 @@ int main(int argc, char **argv){
         retval = select(fd_watch + 1, &rfds, NULL, NULL, &tv);
         if (retval < 0 && errno != EINTR) perror("Error in select (mx)");
         else if (retval > 0) {
-            if (read(fd_cmd, buf, SIZE_MSG) < 0 && errno != EINTR) perror("Error reading from cmd-mx fifo");
+            if (read(fd_cmd, buf, SIZE_MSG) < 0 && errno != EINTR) {
+                length = snprintf(log_msg, 64, "Error reading from cmd-mx fifo: %d\n", errno);
+                if (write_log(fd_log, log_msg, length) < 0 && errno != EINTR)
+                    perror("Error writing to log (mx)");
+            }
             sscanf(buf, "%d", &vel);
             if (vel == 0) {
                 v = 0;
@@ -129,31 +162,33 @@ int main(int argc, char **argv){
                 }
             }
             sprintf(x_buf, "%.2f", xhat);
-            if (write(fd_world, x_buf, 7) < 0 && errno != EINTR) perror("Error writing to world-mx fifo");
+            if (write(fd_world, x_buf, 7) < 0 && errno != EINTR) {
+                length = snprintf(log_msg, 64, "Error writing to world-mx fifo: %d\n", errno);
+                if (write_log(fd_log, log_msg, length) < 0 && errno != EINTR)
+                    perror("Error writing to log (mx)");
+            }
 
             // Write to log file:
-            time_t now = time(NULL);
-            struct tm *timenow = localtime(&now);
-            int length = strftime(log_msg, 64, "[%H:%M:%S]: ", timenow);
-            if (write(fd_log, log_msg, length) < 0 && errno != EINTR) perror("Error writing in log (mx)");
             length = snprintf(log_msg, 64, "Current position x = %.2f\n", xhat);
-            if (write(fd_log, log_msg, length) < 0 && errno != EINTR) perror("Error writing in log (mx)");
+            if (write_log(fd_log, log_msg, length) < 0) perror("Error writing to log (mx)");
                 
             // Send ALIVE signal to watchdog:
-            if (write(fd_watch, "01", SIZE_MSG) < 0 && errno != EINTR) perror("Error writing in mx-watch fifo");
+            if (write(fd_watch, "01", SIZE_MSG) < 0 && errno != EINTR) {
+                length = snprintf(log_msg, 64, "Error writing in mx-watch fifo: %d\n", errno);
+                if (write_log(fd_log, log_msg, length) < 0 && errno != EINTR)
+                    perror("Error writing to log (mx)");
+            }
         }
     }
 
     // Write to log file:
-    time_t now = time(NULL);
-    struct tm *timenow = localtime(&now);
-    int length = strftime(log_msg, 64, "[%H:%M:%S]: Exited succesfully.\n", timenow);
-    if (write(fd_log, log_msg, length) != length) printf("Could not write exit msg.\n");
+    length = snprintf(log_msg, 64, "Exited succesfully.\n");
+    if (write_log(fd_log, log_msg, length) < 0) perror("Error writing to log (mx)");
 
     // Terminate:
     close(fd_cmd);
     close(fd_log);
     close(fd_watch);
     close(fd_world);
-    return status;
+    return 0;
 }

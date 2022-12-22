@@ -297,7 +297,6 @@ int main(int argc, char **argv)
         // Finish due to inactivity time:
         if (cmd_status && ins_status && mx_status && mz_status)
         {   
-            kill(pid_cmd, SIGTERM);
             kill(pid_ins, SIGTERM);
             break;
         }

@@ -59,12 +59,13 @@ int main()
   //                          SPAWN PROCESSES
   // -------------------------------------------------------------------------
 
-  char *arg_list_command[] = {"/usr/bin/xterm", "-e", "./bin/command", NULL};
+  char *arg_list_command[] = {"/usr/bin/konsole", "-e", "./bin/command", NULL};
   char *arg_list_motorx[] = {"./bin/motorx", NULL};
   char *arg_list_motorz[] = {"./bin/motorz", NULL};
   char *arg_list_world[] = {"./bin/world", NULL};
 
   // Spawn everything before inspection console:
+
   pid_t pid_cmd = spawn("/usr/bin/konsole", arg_list_command);
   if (pid_cmd < 0)
     perror("Error spawning command");
@@ -103,24 +104,22 @@ int main()
   sprintf(buf2, "%d", pid_mz);
   sprintf(buf3, "%d", pid_world);
   sprintf(buf4, "%d", pid_cmd);
-  char *arg_list_inspection[] = {"/usr/bin/xterm", "-e", "./bin/inspection", buf1, buf2, buf3, NULL};
+  char *arg_list_inspection[] = {"/usr/bin/konsole", "-e", "./bin/inspection", buf1, buf2, buf4, NULL};
 
-  pid_t pid_insp = spawn("/usr/bin/xterm", arg_list_inspection);
+  pid_t pid_insp = spawn("/usr/bin/konsole", arg_list_inspection);
   if (pid_insp < 0)
     printf("Error spawning inspection");
 
   // Like the command process, pid_insp does not contain the PID of
   // the inspection process, but the PID of the konsole. We use another
-  // fifo to get the real PID, however, we keep track of the old one to 
-  // know when the konsole closes.
+  // fifo to get the real PID.
 
-  pid_t real_pid_ins;
   mkfifo(pid_fifo, 0666);
   int fd_ins = open(pid_fifo, O_RDONLY);
   if (fd_ins < 0 && errno != EINTR)
     perror("Error opening ins-master fifo");
   if (read(fd_ins, buf, 10) < 0) perror("Error reading from ins fifo (master)");
-  sscanf(buf, "%d", &real_pid_ins);
+  sscanf(buf, "%d", &pid_insp);
   sleep(1);
   close(fd_ins);
 
@@ -132,23 +131,10 @@ int main()
   if (pid_insp < 0)
     printf("Error spawning watchdog");
 
-  // Wait only for the termination of the terminals:
+  // Wait only for the termination of the watchdog:
   int status;
-  waitpid(pid_cmd, &status, 0);
-  waitpid(pid_insp, &status, 0);
-
-  // Send signal to watchdog to kill everything:
-  kill(pid_watch, SIGTERM);
-
-  // printf("Status cmd: %d\n", status_cmd);
-  // printf("Status ins: %d\n", status_ins);
-
-  // After, end programs in bg:
-  // kill(pid_mx, SIGTERM);
-  // kill(pid_mz, SIGTERM);
-  // kill(pid_world, SIGTERM);
+  waitpid(pid_watch, &status, 0);
 
   printf("\nMain program exiting with status %d\n", status);
-  // printf("Main program exited.\n");
   return 0;
 }
