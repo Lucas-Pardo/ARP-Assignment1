@@ -4,6 +4,12 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include <signal.h>
+#include <sys/stat.h>
+#include <time.h>
+#include <errno.h>
+#include <fcntl.h>
+
+int finished = 1;
 
 int spawn(const char *program, char *arg_list[])
 {
@@ -29,30 +35,67 @@ int spawn(const char *program, char *arg_list[])
   }
 }
 
+void handler_exit(int sig)
+{
+  finished = 1;
+}
+
 int main()
 {
+
+  // Signal handling to exit process:
+  struct sigaction sa_exit;
+  sigemptyset(&sa_exit.sa_mask);
+  sa_exit.sa_handler = &handler_exit;
+  sa_exit.sa_flags = SA_RESTART;
+  if (sigaction(SIGTERM, &sa_exit, NULL) < 0)
+    printf("Could not catch SIGTERM.\n");
+  if (sigaction(SIGHUP, &sa_exit, NULL) < 0)
+    printf("Could not catch SIGHUP.\n");
+  if (sigaction(SIGINT, &sa_exit, NULL) < 0)
+    printf("Could not catch SIGINT.\n");
+
+  // -------------------------------------------------------------------------
+  //                          SPAWN PROCESSES
+  // -------------------------------------------------------------------------
 
   char *arg_list_command[] = {"/usr/bin/xterm", "-e", "./bin/command", NULL};
   char *arg_list_motorx[] = {"./bin/motorx", NULL};
   char *arg_list_motorz[] = {"./bin/motorz", NULL};
   char *arg_list_world[] = {"./bin/world", NULL};
 
-  // Spawn first motors:
+  // Spawn everything before inspection console:
+  pid_t pid_cmd = spawn("/usr/bin/konsole", arg_list_command);
+  if (pid_cmd < 0)
+    perror("Error spawning command");
+
+  // PID stored in pid_cmd is not the true PID of command process,
+  // is the PID of the konsole executing the process. To get the true PID
+  // we create a quick fifo communication:
+  char *pid_fifo = "./tmp/pid";
+  mkfifo(pid_fifo, 0666);
+  int fd_cmd = open(pid_fifo, O_RDONLY);
+  if (fd_cmd < 0 && errno != EINTR)
+    perror("Error opening cmd-master fifo");
+  char buf[10];
+  if (read(fd_cmd, buf, 10) < 0) perror("Error reading from cmd fifo (master)");
+  sscanf(buf, "%d", &pid_cmd);
+  close(fd_cmd);
+
+
   pid_t pid_mx = spawn("./bin/motorx", arg_list_motorx);
   if (pid_mx < 0)
     printf("Error spawning motorx");
   pid_t pid_mz = spawn("./bin/motorz", arg_list_motorz);
   if (pid_mz < 0)
     printf("Error spawning motorz");
-  pid_t pid_cmd = spawn("/usr/bin/xterm", arg_list_command);
-  if (pid_cmd < 0)
-    printf("Error spawning command");
   pid_t pid_world = spawn("./bin/world", arg_list_world);
   if (pid_world < 0)
     printf("Error spawning world");
 
   // printf("PID motor x: %d\n", pid_mx);
   // printf("PID motor z: %d\n", pid_mz);
+  // printf("PID cmd: %d\n", pid_cmd);
 
   // Add the motors pids as arguments for inspection console:
   char buf1[10], buf2[10], buf3[10], buf4[10], buf5[10];
@@ -65,6 +108,21 @@ int main()
   pid_t pid_insp = spawn("/usr/bin/xterm", arg_list_inspection);
   if (pid_insp < 0)
     printf("Error spawning inspection");
+
+  // Like the command process, pid_insp does not contain the PID of
+  // the inspection process, but the PID of the konsole. We use another
+  // fifo to get the real PID, however, we keep track of the old one to 
+  // know when the konsole closes.
+
+  pid_t real_pid_ins;
+  mkfifo(pid_fifo, 0666);
+  int fd_ins = open(pid_fifo, O_RDONLY);
+  if (fd_ins < 0 && errno != EINTR)
+    perror("Error opening ins-master fifo");
+  if (read(fd_ins, buf, 10) < 0) perror("Error reading from ins fifo (master)");
+  sscanf(buf, "%d", &real_pid_ins);
+  sleep(1);
+  close(fd_ins);
 
   // Add PIDs to watchdog arguments:
   sprintf(buf5, "%d", pid_insp);
