@@ -60,10 +60,6 @@ int main(int argc, char **argv)
   if (sigaction(SIGINT, &sa_exit, NULL) < 0)
     printf("Could not catch SIGINT.\n");
 
-  // -------------------------------------------------------------------------
-  //                          SPAWN PROCESSES
-  // -------------------------------------------------------------------------
-
   // Remove all log files before spawning:
 
   DIR *directory;
@@ -92,7 +88,9 @@ int main(int argc, char **argv)
   if (closedir(directory) < 0)
     perror("Error closing directory");
 
-  // Start spawning:
+  // -------------------------------------------------------------------------
+  //                          SPAWN PROCESSES
+  // -------------------------------------------------------------------------
 
   char *arg_list_command[] = {"/usr/bin/konsole", "-e", "./bin/command", NULL};
   char *arg_list_motorx[] = {"./bin/motorx", NULL};
@@ -106,7 +104,7 @@ int main(int argc, char **argv)
 
   // PID stored in pid_cmd is not the true PID of command process,
   // is the PID of the konsole executing the process. To get the true PID
-  // we will create a quick fifo communication:
+  // we create a quick fifo communication:
   char *cmd_fifo = "./tmp/cmd_pid";
   mkfifo(cmd_fifo, 0666);
   int fd_cmd = open(cmd_fifo, O_RDONLY);
@@ -144,9 +142,9 @@ int main(int argc, char **argv)
     printf("Error spawning inspection");
 
   // Like the command process, pid_insp does not contain the PID of
-  // the inspection console, but the PID of the konsole. However, in
+  // the inspection process, but the PID of the konsole. However, in
   // this case it does not matter as the PID is only used to send
-  // termination signal that gets resent to all child processes of the konsole.
+  // termination signal that gets propagated to all child processes of the konsole.
 
   // ---------------------------------------------------------------------------
   //                        PERFORM WATCHDOG DUTIES
@@ -161,21 +159,20 @@ int main(int argc, char **argv)
   tim.tv_nsec = DT * 1000;
 
   // Give some time for processes to start:
-  sleep(10);
+  sleep(4);
 
   // Main loop:
   while (1)
   {
-    pid_t wcmd = waitpid(pid_cmd, &status, WNOHANG);
     pid_t wins = waitpid(pid_insp, &status, WNOHANG);
 
-    if (wcmd > 0 && wins > 0)
+    if (wins > 0)
       break;      // Both processes finished --> exit loop
 
     // Finish routine:
     if (finished)
     {
-      kill(pid_cmd, SIGTERM);
+      // Just kill inspection because inspection already kills command at termination.
       kill(pid_insp, SIGTERM);
       break;
     }

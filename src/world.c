@@ -56,9 +56,9 @@ int main(int argc, char ** argv){
     int fd_mz = open(mz_fifo, O_RDONLY);
     if (fd_mz < 0) perror("Error opening world-mz fifo");
     int fd_insx = open(insx_fifo, O_WRONLY);
-    if (fd_insx < 0) perror("Error opening worldx-ins fifo");
+    if (fd_insx < 0) perror("Error opening worldx-ins fifo (world)");
     int fd_insz = open(insz_fifo, O_WRONLY);
-    if (fd_insz < 0) perror("Error opening worldz-ins fifo");
+    if (fd_insz < 0) perror("Error opening worldz-ins fifo (world)");
 
     // Variables for the select():
     fd_set rfds;

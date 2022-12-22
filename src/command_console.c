@@ -18,7 +18,12 @@ int reset = 0;
 
 void signal_handler(int sig)
 {
-    reset = !reset;
+    if (sig == SIGUSR2) {
+        reset = !reset;
+    } else if (sig == SIGUSR1) {
+        reset = 0;
+    }
+    
 }
 
 void handler_exit(int sig)
@@ -68,6 +73,12 @@ int main(int argc, char const *argv[])
     if (sigaction(SIGUSR2, &sa, NULL) < 0)
     {
         int length = snprintf(log_msg, 64, "Cannot catch SIGUSR2.\n");
+        if (write_log(fd_log, log_msg, length) < 0 && errno != EINTR)
+            perror("Error writing to log (cmd)");
+    }
+    if (sigaction(SIGUSR1, &sa, NULL) < 0)
+    {
+        int length = snprintf(log_msg, 64, "Cannot catch SIGUSR1.\n");
         if (write_log(fd_log, log_msg, length) < 0 && errno != EINTR)
             perror("Error writing to log (cmd)");
     }

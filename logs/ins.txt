@@ -1,16 +1,5 @@
-[13:48:17]: Error reading from worldx-ins fifo: 4.
-[13:48:37]: Pressed RESET button.
-[13:48:54]: Pressed STOP button.
-[13:48:56]: Pressed RESET button.
-[13:48:56]: Pressed STOP button.
-[13:48:58]: Pressed RESET button.
-[13:49:14]: Pressed RESET button.
-[13:49:18]: Pressed STOP button.
-[13:49:18]: Pressed STOP button.
-[13:49:19]: Pressed RESET button.
-[13:49:30]: Pressed STOP button.
-[13:49:31]: Pressed RESET button.
-[13:49:31]: Pressed RESET button.
-[13:49:32]: Pressed RESET button.
-[13:49:32]: Pressed RESET button.
-[13:49:36]: Exited succesfully.
+[17:25:03]: Pressed RESET button.
+[17:25:16]: Pressed STOP button.
+[17:25:27]: Pressed RESET button.
+[17:25:29]: Pressed STOP button.
+[17:25:34]: Pressed RESET button.
