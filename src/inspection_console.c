@@ -14,34 +14,50 @@
 #define DT 25000 // Time in usec (40 Hz)
 
 int finish = 0;
+int reset = 0;
 
-int sr_function(int pid_mx, int pid_mz, int r) {
-    if (r) {
-        // Send RESET signal to both motors:
-        if (kill(pid_mx, SIGUSR2) < 0) return -1;
-        if (kill(pid_mz, SIGUSR2) < 0) return -1;
-    } else {
-        // Send STOP signal to both motors:
-        if (kill(pid_mx, SIGUSR1) < 0) return -1;
-        if (kill(pid_mz, SIGUSR1) < 0) return -1;
-    }
-    return 0;
+void handler_exit(int sig)
+{
+    finish = 1;
 }
 
-void handler_exit(int sig) {
-    finish = 1;
+int write_log(int fd_log, char *msg, int lmsg)
+{
+    char log_msg[64];
+    time_t now = time(NULL);
+    struct tm *timenow = localtime(&now);
+    int length = strftime(log_msg, 64, "[%H:%M:%S]: ", timenow);
+    if (write(fd_log, log_msg, length) < 0 && errno != EINTR)
+        return -1;
+    if (write(fd_log, msg, lmsg) < 0 && errno != EINTR)
+        return -1;
+    return 0;
 }
 
 int main(int argc, char const *argv[])
 {
+
+    // Log file:
+    int fd_log = creat("./logs/ins.txt", 0666);
+    char log_msg[64];
 
     // Signal handling to exit process:
     struct sigaction sa_exit;
     sigemptyset(&sa_exit.sa_mask);
     sa_exit.sa_handler = &handler_exit;
     sa_exit.sa_flags = SA_RESTART;
-    if (sigaction(SIGTERM, &sa_exit, NULL) < 0) printf("Could not catch SIGTERM.\n");
-    if (sigaction(SIGHUP, &sa_exit, NULL) < 0) printf("Could not catch SIGHUP.\n");
+    if (sigaction(SIGTERM, &sa_exit, NULL) < 0)
+    {
+        int length = snprintf(log_msg, 64, "Cannot catch SIGTERM.\n");
+        if (write_log(fd_log, log_msg, length) < 0 && errno != EINTR)
+            perror("Error writing to log (ins)");
+    }
+    if (sigaction(SIGHUP, &sa_exit, NULL) < 0)
+    {
+        int length = snprintf(log_msg, 64, "Cannot catch SIGHUP.\n");
+        if (write_log(fd_log, log_msg, length) < 0 && errno != EINTR)
+            perror("Error writing to log (ins)");
+    }
 
     // End-effector coordinates
     float ee_x, ee_z;
@@ -49,42 +65,51 @@ int main(int argc, char const *argv[])
     // Utility variable to avoid trigger resize event on launch
     int first_resize = TRUE;
 
-    // Initialize User Interface 
+    // Initialize User Interface
     init_console_ui();
 
     // Get PIDs:
-    int pid_mx, pid_mz;
-    if (argc != 3) {
-        printf("Wrong number of arguments: pid_mx pid_mz");
-        return -1;
-    } else {
+    pid_t pid_mx, pid_mz, pid_cmd;
+    if (argc != 4)
+    {
+        int length = snprintf(log_msg, 64, "Wrong number of arguments: pid_mx pid_mz pid_cmd.\n");
+        if (write_log(fd_log, log_msg, length) < 0 && errno != EINTR)
+            perror("Error writing to log (ins)");
+        return 1;
+    }
+    else
+    {
         sscanf(argv[1], "%d", &pid_mx);
         sscanf(argv[2], "%d", &pid_mz);
+        sscanf(argv[3], "%d", &pid_cmd);
     }
 
-    // Log file:
-    int fd_log = creat("./logs/ins.txt", 0666);
-
     // Paths for fifos:
-    char * worldx_fifo = "./tmp/worldx_ins";
-    char * worldz_fifo = "./tmp/worldz_ins";
+    char *watch_fifo = "./tmp/watch_ins";
+    char *worldx_fifo = "./tmp/worldx_ins";
+    char *worldz_fifo = "./tmp/worldz_ins";
 
     // Create fifos:
+    mkfifo(watch_fifo, 0666);
     mkfifo(worldx_fifo, 0666);
     mkfifo(worldz_fifo, 0666);
 
-    sleep(1);
+    // sleep(1);
 
     // Open fifos:
     int fd_worldx = open(worldx_fifo, O_RDONLY);
-    if (fd_worldx < 0) perror("Error opening worldx-ins fifo");
+    if (fd_worldx < 0)
+        perror("Error opening worldx-ins fifo");
     int fd_worldz = open(worldz_fifo, O_RDONLY);
-    if (fd_worldz < 0) perror("Error opening worldz-ins fifo");
+    if (fd_worldz < 0)
+        perror("Error opening worldz-ins fifo");
+    int fd_watch = open(watch_fifo, O_WRONLY);
+    if (fd_watch < 0)
+        perror("Error opening watch-ins fifo");
 
     // Buffers for msgs:
     char buf[2];
     char position_buf[6];
-    char log_msg[64];
 
     // Variables for inactivity time:
     struct timeval tv;
@@ -94,56 +119,103 @@ int main(int argc, char const *argv[])
     int retval;
 
     // Infinite loop
-    while(!finish)
-	{	
+    while (!finish)
+    {
 
         // Get mouse/resize commands in non-blocking mode...
         int cmd = getch();
 
         // If user resizes screen, re-draw UI
-        if(cmd == KEY_RESIZE) {
-            if(first_resize) {
+        if (cmd == KEY_RESIZE)
+        {
+            if (first_resize)
+            {
                 first_resize = FALSE;
             }
-            else {
+            else
+            {
                 reset_console_ui();
             }
         }
         // Else if mouse has been pressed
-        else if(cmd == KEY_MOUSE) {
+        else if (cmd == KEY_MOUSE)
+        {
 
             // Check which button has been pressed...
-            if(getmouse(&event) == OK) {
+            if (getmouse(&event) == OK)
+            {
 
                 // STOP button pressed
-                if(check_button_pressed(stp_button, &event)) {
+                if (check_button_pressed(stp_button, &event))
+                {
 
-                    // Write command to motors:
-                    if (sr_function(pid_mx, pid_mz, 0) < 0) printf("Error in sr_function");
+                    // Send STOP signal to both motors:
+                    if (kill(pid_mx, SIGUSR1) < 0)
+                    {
+                        int length = snprintf(log_msg, 64, "Error sending signal to mx (ins): %d.\n", errno);
+                        if (write_log(fd_log, log_msg, length) < 0 && errno != EINTR)
+                            perror("Error writing to log (ins)");
+                    }
+                    if (kill(pid_mz, SIGUSR1) < 0)
+                    {
+                        int length = snprintf(log_msg, 64, "Error sending signal to mz (ins): %d.\n", errno);
+                        if (write_log(fd_log, log_msg, length) < 0 && errno != EINTR)
+                            perror("Error writing to log (ins)");
+                    }
 
                     // Write command to log file:
-                    time_t now = time(NULL);
-                    struct tm *timenow = localtime(&now);
-                    int length = strftime(log_msg, 64, "[%H:%M:%S]: Pressed STOP button.\n", timenow);
-                    if (write(fd_log, log_msg, length) != length) perror("Error writing in log");
+                    int length = snprintf(log_msg, 64, "Pressed STOP button.\n");
+                    if (write_log(fd_log, log_msg, length) < 0)
+                        perror("Error writing in log (ins)");
 
                 }
 
                 // RESET button pressed
-                else if(check_button_pressed(rst_button, &event)) {
+                else if (check_button_pressed(rst_button, &event))
+                {
 
-                    // Write command to motors:
-                    if (sr_function(pid_mx, pid_mz, 1) < 0) printf("Error in sr_function");
+                    // Send RESET signal to both motors and cmd:
+                    if (kill(pid_mx, SIGUSR2) < 0)
+                    {
+                        int length = snprintf(log_msg, 64, "Error sending signal to mx (ins): %d.\n", errno);
+                        if (write_log(fd_log, log_msg, length) < 0 && errno != EINTR)
+                            perror("Error writing to log (ins)");
+                    }
+                    if (kill(pid_mz, SIGUSR2) < 0)
+                    {
+                        int length = snprintf(log_msg, 64, "Error sending signal to mz (ins): %d.\n", errno);
+                        if (write_log(fd_log, log_msg, length) < 0 && errno != EINTR)
+                            perror("Error writing to log (ins)");
+                    }
+                    if (kill(pid_cmd, SIGUSR2) < 0)
+                    {
+                        int length = snprintf(log_msg, 64, "Error sending signal to cmd (ins): %d.\n", errno);
+                        if (write_log(fd_log, log_msg, length) < 0 && errno != EINTR)
+                            perror("Error writing to log (ins)");
+                    }
+                    reset = 1;
 
                     // Write command to log file:
-                    time_t now = time(NULL);
-                    struct tm *timenow = localtime(&now);
-                    int length = strftime(log_msg, 64, "[%H:%M:%S]: Pressed RESET button.\n", timenow);
-                    if (write(fd_log, log_msg, length) != length) perror("Error writing in log");
+                    int length = snprintf(log_msg, 64, "Pressed RESET button.\n");
+                    if (write_log(fd_log, log_msg, length) < 0)
+                        perror("Error writing in log (ins)");
 
                 }
+
+                // EXIT button pressed
+                // else if (check_button_pressed(exit_button, &event))
+                // {
+                //     if (kill(pid_cmd, SIGTERM) < 0)
+                //     {
+                //         int length = snprintf(log_msg, 64, "Error sending signal to cmd (ins): %d.\n", errno);
+                //         if (write_log(fd_log, log_msg, length) < 0 && errno != EINTR)
+                //             perror("Error writing to log (ins)");
+                //     }
+                //     finish = 1;
+                //     break;
+                // }
             }
-        } 
+        }
 
         // Create the set of read fds:
         FD_ZERO(&rfds);
@@ -155,18 +227,43 @@ int main(int argc, char const *argv[])
         tv.tv_usec = DT;
 
         retval = select(fd_worldz + 1, &rfds, NULL, NULL, &tv);
-        if (retval < 0 && errno != EINTR) perror("Error in select");
-        else if (retval) {
-            if (FD_ISSET(fd_worldx, &rfds)){
-                if (read(fd_worldx, position_buf, 7) < 0) perror("Error reading from worldx-ins fifo");
+        if (retval < 0 && errno != EINTR)
+            perror("Error in select (insp)");
+        else if (retval)
+        {
+            if (FD_ISSET(fd_worldx, &rfds))
+            {
+                if (read(fd_worldx, position_buf, 7) < 0)
+                {
+                    int length = snprintf(log_msg, 64, "Error reading from worldx-ins fifo: %d.\n", errno);
+                    if (write_log(fd_log, log_msg, length) < 0 && errno != EINTR)
+                        perror("Error writing to log (ins)");
+                }
                 sscanf(position_buf, "%f", &ee_x);
             }
-            if (FD_ISSET(fd_worldz, &rfds)){
-                if (read(fd_worldz, position_buf, 7) < 0) perror("Error reading from worldz-ins fifo");
+            if (FD_ISSET(fd_worldz, &rfds))
+            {
+                if (read(fd_worldz, position_buf, 7) < 0)
+                {
+                    int length = snprintf(log_msg, 64, "Error reading from worldz-ins fifo: %d.\n", errno);
+                    if (write_log(fd_log, log_msg, length) < 0 && errno != EINTR)
+                        perror("Error writing to log (ins)");
+                }
                 sscanf(position_buf, "%f", &ee_z);
             }
-        } 
-        
+        }
+
+        if (ee_x <= 0 && ee_z <= 0 && reset)
+        {
+            if (kill(pid_cmd, SIGUSR2) < 0)
+            {
+                int length = snprintf(log_msg, 64, "Error sending signal to cmd (ins): %d.\n", errno);
+                if (write_log(fd_log, log_msg, length) < 0 && errno != EINTR)
+                    perror("Error writing to log (ins)");
+            }
+            reset = 0;
+        }
+
         // To be commented in final version...
         // switch (cmd)
         // {
@@ -185,21 +282,22 @@ int main(int argc, char const *argv[])
         //     default:
         //         break;
         // }
-        
+
         // Update UI
         update_console_ui(&ee_x, &ee_z);
-	}
+    }
 
     // Write to log file:
-    time_t now = time(NULL);
-    struct tm *timenow = localtime(&now);
-    int length = strftime(log_msg, 64, "[%H:%M:%S]: Exited succesfully.\n", timenow);
-    if (write(fd_log, log_msg, length) != length) printf("Could not write the msg.\n");
-    
+    int length = snprintf(log_msg, 64, "Exited succesfully.\n");
+    if (write_log(fd_log, log_msg, length) < 0)
+        printf("Could not write exit msg.\n");
+
     // Terminate
     close(fd_log);
     close(fd_worldx);
     close(fd_worldz);
     endwin();
+    // Send signal to master to signal the end of the process:
+    // kill(getppid(), SIGUSR2);
     return 0;
 }
