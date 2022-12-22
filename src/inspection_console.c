@@ -37,6 +37,19 @@ int write_log(int fd_log, char *msg, int lmsg)
 int main(int argc, char const *argv[])
 {
 
+    // Send PID to master:
+    pid_t pid = getpid();
+    char *master_fifo = "./tmp/pid";
+    mkfifo(master_fifo, 0666);
+    int fd_master = open(master_fifo, O_WRONLY);
+    if (fd_master < 0 && errno != EINTR)
+        perror("Error opening cmd-master fifo");
+    char buf_pid[10];
+    sprintf(buf_pid, "%d", pid);
+    if (write(fd_master, buf_pid, 10) < 0) perror("Error writing to master fifo (cmd)");
+    sleep(2);
+    close(fd_master);
+
     // Log file:
     int fd_log = creat("./logs/ins.txt", 0666);
     char log_msg[64];
@@ -54,7 +67,8 @@ int main(int argc, char const *argv[])
     }
 
     // End-effector coordinates
-    float ee_x, ee_z;
+    float ee_x = 0;
+    float ee_z = 0;
 
     // Utility variable to avoid trigger resize event on launch
     int first_resize = TRUE;
@@ -163,7 +177,6 @@ int main(int argc, char const *argv[])
                     int length = snprintf(log_msg, 64, "Pressed STOP button.\n");
                     if (write_log(fd_log, log_msg, length) < 0)
                         perror("Error writing in log (ins)");
-
                 }
 
                 // RESET button pressed
@@ -195,21 +208,10 @@ int main(int argc, char const *argv[])
                     int length = snprintf(log_msg, 64, "Pressed RESET button.\n");
                     if (write_log(fd_log, log_msg, length) < 0)
                         perror("Error writing in log (ins)");
-
                 }
 
                 // EXIT button pressed
-                // else if (check_button_pressed(exit_button, &event))
-                // {
-                //     if (kill(pid_cmd, SIGTERM) < 0)
-                //     {
-                //         int length = snprintf(log_msg, 64, "Error sending signal to cmd (ins): %d.\n", errno);
-                //         if (write_log(fd_log, log_msg, length) < 0 && errno != EINTR)
-                //             perror("Error writing to log (ins)");
-                //     }
-                //     finish = 1;
-                //     break;
-                // }
+                else if (check_button_pressed(exit_button, &event)) break;
             }
         }
 
@@ -284,7 +286,12 @@ int main(int argc, char const *argv[])
     }
 
     // Send termination signal to command:
-    kill(pid_cmd, SIGTERM);
+    if (kill(pid_cmd, SIGTERM) < 0)
+    {
+        int length = snprintf(log_msg, 64, "Error sending signal to cmd (ins): %d.\n", errno);
+        if (write_log(fd_log, log_msg, length) < 0 && errno != EINTR)
+            perror("Error writing to log (ins)");
+    }
 
     // Write to log file:
     int length = snprintf(log_msg, 64, "Exited succesfully.\n");

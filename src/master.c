@@ -10,7 +10,7 @@
 #include <errno.h>
 #include <fcntl.h>
 
-#define INTIME 240 // Time of inactivity in seconds
+#define INTIME 20 // Time of inactivity in seconds
 #define DT 25000   // Time in usec (40 Hz)
 
 int finished = 0;
@@ -48,6 +48,10 @@ void handler_exit(int sig)
 int main(int argc, char **argv)
 {
 
+  // Debug thing:
+  // pid_t pid_mx;
+  // sscanf(argv[1], "%d", &pid_mx);
+
   // Signal handling to exit process:
   struct sigaction sa_exit;
   sigemptyset(&sa_exit.sa_mask);
@@ -70,7 +74,7 @@ int main(int argc, char **argv)
   if (directory == NULL)
   {
     printf("Error opening directory.\n");
-    return -1;
+    return 1;
   }
 
   char filename[512];
@@ -100,35 +104,34 @@ int main(int argc, char **argv)
   // Spawn everything before inspection console:
   pid_t pid_cmd = spawn("/usr/bin/konsole", arg_list_command);
   if (pid_cmd < 0)
-    printf("Error spawning command");
+    perror("Error spawning command");
 
   // PID stored in pid_cmd is not the true PID of command process,
   // is the PID of the konsole executing the process. To get the true PID
   // we create a quick fifo communication:
-  char *cmd_fifo = "./tmp/cmd_pid";
-  mkfifo(cmd_fifo, 0666);
-  int fd_cmd = open(cmd_fifo, O_RDONLY);
+  char *pid_fifo = "./tmp/pid";
+  mkfifo(pid_fifo, 0666);
+  int fd_cmd = open(pid_fifo, O_RDONLY);
   if (fd_cmd < 0 && errno != EINTR)
     perror("Error opening cmd-master fifo");
   char buf[10];
   if (read(fd_cmd, buf, 10) < 0) perror("Error reading from cmd fifo (master)");
   sscanf(buf, "%d", &pid_cmd);
-  sleep(1);
   close(fd_cmd);
 
   pid_t pid_mx = spawn("./bin/motorx", arg_list_motorx);
   if (pid_mx < 0)
-    printf("Error spawning motorx");
+    perror("Error spawning motorx");
   pid_t pid_mz = spawn("./bin/motorz", arg_list_motorz);
   if (pid_mz < 0)
-    printf("Error spawning motorz");
+    perror("Error spawning motorz");
   pid_t pid_world = spawn("./bin/world", arg_list_world);
   if (pid_world < 0)
-    printf("Error spawning world");
+    perror("Error spawning world");
 
-  printf("PID motor x: %d\n", pid_mx);
-  printf("PID motor z: %d\n", pid_mz);
-  printf("PID cmd: %d\n", pid_cmd);
+  // printf("PID motor x: %d\n", pid_mx);
+  // printf("PID motor z: %d\n", pid_mz);
+  // printf("PID cmd: %d\n", pid_cmd);
 
   // Add the motors pids as arguments for inspection console:
   char buf1[10], buf2[10], buf3[10];
@@ -139,12 +142,23 @@ int main(int argc, char **argv)
 
   pid_t pid_insp = spawn("/usr/bin/konsole", arg_list_inspection);
   if (pid_insp < 0)
-    printf("Error spawning inspection");
+    perror("Error spawning inspection");
 
   // Like the command process, pid_insp does not contain the PID of
-  // the inspection process, but the PID of the konsole. However, in
-  // this case it does not matter as the PID is only used to send
-  // termination signal that gets propagated to all child processes of the konsole.
+  // the inspection process, but the PID of the konsole. We use another
+  // fifo to get the real PID, however, we keep track of the old one to 
+  // know when the konsole closes.
+
+  pid_t real_pid_ins;
+  mkfifo(pid_fifo, 0666);
+  int fd_ins = open(pid_fifo, O_RDONLY);
+  if (fd_ins < 0 && errno != EINTR)
+    perror("Error opening ins-master fifo");
+  if (read(fd_ins, buf, 10) < 0) perror("Error reading from ins fifo (master)");
+  sscanf(buf, "%d", &real_pid_ins);
+  sleep(1);
+  close(fd_ins);
+
 
   // ---------------------------------------------------------------------------
   //                        PERFORM WATCHDOG DUTIES
@@ -158,8 +172,9 @@ int main(int argc, char **argv)
   tim.tv_sec = 0;
   tim.tv_nsec = DT * 1000;
 
-  // Give some time for processes to start:
-  sleep(4);
+  // Give some time for processes to start and create the log files,
+  // otherwise the loop finishes:
+  sleep(5);
 
   // Main loop:
   while (1)
@@ -173,7 +188,7 @@ int main(int argc, char **argv)
     if (finished)
     {
       // Just kill inspection because inspection already kills command at termination.
-      kill(pid_insp, SIGTERM);
+      kill(real_pid_ins, SIGTERM);
       break;
     }
 
@@ -224,6 +239,14 @@ int main(int argc, char **argv)
   kill(pid_mz, SIGTERM);
   kill(pid_world, SIGTERM);
 
-  printf("\nMain program exiting with status %d\n", status);
+  // Give time for processes to finish:
+  for (int i = 3; i > 0; i--)
+  {
+    printf("Exiting main program in %d seconds.\n", i);
+    sleep(1);
+  }
+  
+
+  printf("Main program exiting with status %d\n", status);
   return 0;
 }

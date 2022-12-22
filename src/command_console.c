@@ -49,7 +49,7 @@ int main(int argc, char const *argv[])
 
     // Send PID to master:
     pid_t pid = getpid();
-    char *master_fifo = "./tmp/cmd_pid";
+    char *master_fifo = "./tmp/pid";
     mkfifo(master_fifo, 0666);
     int fd_master = open(master_fifo, O_WRONLY);
     if (fd_master < 0 && errno != EINTR)
@@ -57,7 +57,7 @@ int main(int argc, char const *argv[])
     char buf[10];
     sprintf(buf, "%d", pid);
     if (write(fd_master, buf, 10) < 0) perror("Error writing to master fifo (cmd)");
-    sleep(2);
+    sleep(1);
     close(fd_master);
 
     // Log file:
@@ -91,12 +91,6 @@ int main(int argc, char const *argv[])
     if (sigaction(SIGTERM, &sa_exit, NULL) < 0)
     {
         int length = snprintf(log_msg, 64, "Cannot catch SIGTERM.\n");
-        if (write_log(fd_log, log_msg, length) < 0 && errno != EINTR)
-            perror("Error writing to log (cmd)");
-    }
-    if (sigaction(SIGHUP, &sa_exit, NULL) < 0)
-    {
-        int length = snprintf(log_msg, 64, "Cannot catch SIGHUP.\n");
         if (write_log(fd_log, log_msg, length) < 0 && errno != EINTR)
             perror("Error writing to log (cmd)");
     }

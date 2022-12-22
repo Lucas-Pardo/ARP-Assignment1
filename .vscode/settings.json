@@ -3,6 +3,7 @@
         "command_utilities.h": "c",
         "inspection_utilities.h": "c",
         "stdio.h": "c",
-        "fcntl.h": "c"
+        "fcntl.h": "c",
+        "errno.h": "c"
     }
 }

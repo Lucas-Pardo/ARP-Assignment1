@@ -34,24 +34,57 @@ void handler_exit(int sig) {
     finish = 1;
 }
 
+int write_log(int fd_log, char *msg, int lmsg)
+{
+    char log_msg[64];
+    time_t now = time(NULL);
+    struct tm *timenow = localtime(&now);
+    int length = strftime(log_msg, 64, "[%H:%M:%S]: ", timenow);
+    if (write(fd_log, log_msg, length) < 0 && errno != EINTR)
+        return -1;
+    if (write(fd_log, msg, lmsg) < 0 && errno != EINTR)
+        return -1;
+    return 0;
+}
+
 int main(int argc, char **argv){
+
+    // Log file:
+    int fd_log = creat("./logs/motorz.txt", 0666);
+    char log_msg[64];
+    int length;
 
     // Signal handler:
     struct sigaction sa;
     sigemptyset(&sa.sa_mask);
     sa.sa_handler = &signal_handler;
     sa.sa_flags = SA_RESTART;
-    if (sigaction(SIGUSR1, &sa, NULL) < 0) printf("Could not catch SIGUSR1\n");
-    if (sigaction(SIGUSR2, &sa, NULL) < 0) printf("Could not catch SIGUSR2\n");
+    if (sigaction(SIGUSR1, &sa, NULL) < 0) {
+        length = snprintf(log_msg, 64, "Could not catch SIGUSR1: %d\n", errno);
+        if (write_log(fd_log, log_msg, length) < 0 && errno != EINTR)
+            perror("Error writing to log (mz)");
+    }
+    if (sigaction(SIGUSR2, &sa, NULL) < 0) {
+        length = snprintf(log_msg, 64, "Could not catch SIGUSR2: %d\n", errno);
+        if (write_log(fd_log, log_msg, length) < 0 && errno != EINTR)
+            perror("Error writing to log (mz)");
+    }
 
     // Signal handling to exit process:
     struct sigaction sa_exit;
     sigemptyset(&sa_exit.sa_mask);
     sa_exit.sa_handler = &handler_exit;
-    if (sigaction(SIGTERM, &sa_exit, NULL) < 0) printf("Could not catch SIGTERM.\n");
-
-    // Log file:
-    int fd_log = creat("./logs/motorz.txt", 0666);
+    sa_exit.sa_flags = SA_RESTART;
+    if (sigaction(SIGTERM, &sa_exit, NULL) < 0) {
+        length = snprintf(log_msg, 64, "Could not catch SIGTERM: %d\n", errno);
+        if (write_log(fd_log, log_msg, length) < 0 && errno != EINTR)
+            perror("Error writing to log (mz)");
+    }
+    if (sigaction(SIGPIPE, &sa_exit, NULL) < 0) {
+        length = snprintf(log_msg, 64, "Could not catch SIGPIPE: %d\n", errno);
+        if (write_log(fd_log, log_msg, length) < 0 && errno != EINTR)
+            perror("Error writing to log (mz)");
+    }
     
     // Paths for fifos:
     char * cmd_fifo = "./tmp/cmd_mz";
@@ -81,7 +114,6 @@ int main(int argc, char **argv){
     char buf[2];
     char z_buf[6] = "000000";
     int vel;
-    char log_msg[64];
 
     // Main loop:
     while(!finish){
@@ -97,7 +129,11 @@ int main(int argc, char **argv){
         retval = select(fd_world + 1, &rfds, NULL, NULL, &tv);
         if (retval < 0 && errno != EINTR) perror("Error in select");
         else if (retval > 0) {
-            if (read(fd_cmd, buf, SIZE_MSG) < 0) perror("Error reading from cmd-mz fifo");
+            if (read(fd_cmd, buf, SIZE_MSG) < 0 && errno != EINTR) {
+                length = snprintf(log_msg, 64, "Error reading from cmd-mz fifo: %d\n", errno);
+                if (write_log(fd_log, log_msg, length) < 0 && errno != EINTR)
+                    perror("Error writing to log (mz)");
+            }
             sscanf(buf, "%d", &vel);
             if (vel == 0) {
                 v = 0;
@@ -122,24 +158,22 @@ int main(int argc, char **argv){
                 }
             }
             sprintf(z_buf, "%.2f", zhat);
-            if (write(fd_world, z_buf, 7) < 0) perror("Error writing to world-mz fifo");
+            if (write(fd_world, z_buf, 7 && errno != EINTR) < 0) {
+                length = snprintf(log_msg, 64, "Error writing to world-mz fifo: %d\n", errno);
+                if (write_log(fd_log, log_msg, length) < 0 && errno != EINTR)
+                    perror("Error writing to log (mz)");
+            }
             
             // Write to log file:
-            time_t now = time(NULL);
-            struct tm *timenow = localtime(&now);
-            int length = strftime(log_msg, 64, "[%H:%M:%S]: ", timenow);
-            if (write(fd_log, log_msg, length) != length) perror("Error writing in log");
             length = snprintf(log_msg, 64, "Current position x = %.2f\n", zhat);
-            if (write(fd_log, log_msg, length) != length) perror("Error writing in log");
+            if (write_log(fd_log, log_msg, length) < 0) perror("Error writing in log (mz)");
                 
         }
     }
 
     // Write to log file:
-    time_t now = time(NULL);
-    struct tm *timenow = localtime(&now);
-    int length = strftime(log_msg, 64, "[%H:%M:%S]: Exited succesfully.\n", timenow);
-    if (write(fd_log, log_msg, length) != length) return -1;
+    length = snprintf(log_msg, 64, "Exited succesfully.\n");
+    if (write_log(fd_log, log_msg, length) < 0) perror("Error writing to log (mz)");
 
     // Terminate:
     close(fd_cmd);
