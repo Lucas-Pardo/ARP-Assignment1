@@ -34,3 +34,16 @@ After compiling, **assuming you have Konsole installed in your system** as per t
 ## Troubleshooting
 
 Should you experience some weird behavior after launching the application (buttons not spawning inside the GUI or graphical assets misaligned) simply try to resize the terminal window, it should solve the bug.
+
+
+## A note about the consoles:
+
+The two consoles: Inspection and Command console will be controlling the movement of the hoist, as instructed. All the process logs, user inputs, etc., are written to the log files inside `logs/`. 
+
+Apart from the already present **Stop** `S` and **Reset** `R` buttons, we have implemented an extra **exit** button `X`, which can be used to terminate all the processes and close the consoles.
+
+## Branch Info:
+
+- master: _
+- exp: _
+- version2: _
