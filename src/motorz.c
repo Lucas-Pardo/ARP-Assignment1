@@ -158,7 +158,7 @@ int main(int argc, char **argv){
                 }
             }
             sprintf(z_buf, "%.2f", zhat);
-            if (write(fd_world, z_buf, 7 && errno != EINTR) < 0) {
+            if (write(fd_world, z_buf, 7) < 0 && errno != EINTR) {
                 length = snprintf(log_msg, 64, "Error writing to world-mz fifo: %d\n", errno);
                 if (write_log(fd_log, log_msg, length) < 0 && errno != EINTR)
                     perror("Error writing to log (mz)");
