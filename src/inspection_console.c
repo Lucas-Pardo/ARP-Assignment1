@@ -85,12 +85,10 @@ int main(int argc, char const *argv[])
     }
 
     // Paths for fifos:
-    char *watch_fifo = "./tmp/watch_ins";
     char *worldx_fifo = "./tmp/worldx_ins";
     char *worldz_fifo = "./tmp/worldz_ins";
 
     // Create fifos:
-    mkfifo(watch_fifo, 0666);
     mkfifo(worldx_fifo, 0666);
     mkfifo(worldz_fifo, 0666);
 
@@ -103,9 +101,6 @@ int main(int argc, char const *argv[])
     int fd_worldz = open(worldz_fifo, O_RDONLY);
     if (fd_worldz < 0)
         perror("Error opening worldz-ins fifo");
-    int fd_watch = open(watch_fifo, O_WRONLY);
-    if (fd_watch < 0)
-        perror("Error opening watch-ins fifo");
 
     // Buffers for msgs:
     char buf[2];

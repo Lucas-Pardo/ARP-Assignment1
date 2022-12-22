@@ -7,9 +7,11 @@
 #include <signal.h>
 #include <sys/stat.h>
 #include <time.h>
+#include <errno.h>
+#include <fcntl.h>
 
-#define INTIME 30 // Time of inactivity in seconds
-#define DT 25000  // Time in usec (40 Hz)
+#define INTIME 240 // Time of inactivity in seconds
+#define DT 25000   // Time in usec (40 Hz)
 
 int finished = 0;
 
@@ -43,7 +45,7 @@ void handler_exit(int sig)
   finished = 1;
 }
 
-int main()
+int main(int argc, char **argv)
 {
 
   // Signal handling to exit process:
@@ -87,6 +89,9 @@ int main()
     }
   }
 
+  if (closedir(directory) < 0)
+    perror("Error closing directory");
+
   // Start spawning:
 
   char *arg_list_command[] = {"/usr/bin/konsole", "-e", "./bin/command", NULL};
@@ -95,6 +100,24 @@ int main()
   char *arg_list_world[] = {"./bin/world", NULL};
 
   // Spawn everything before inspection console:
+  pid_t pid_cmd = spawn("/usr/bin/konsole", arg_list_command);
+  if (pid_cmd < 0)
+    printf("Error spawning command");
+
+  // PID stored in pid_cmd is not the true PID of command process,
+  // is the PID of the konsole executing the process. To get the true PID
+  // we will create a quick fifo communication:
+  char *cmd_fifo = "./tmp/cmd_pid";
+  mkfifo(cmd_fifo, 0666);
+  int fd_cmd = open(cmd_fifo, O_RDONLY);
+  if (fd_cmd < 0 && errno != EINTR)
+    perror("Error opening cmd-master fifo");
+  char buf[10];
+  if (read(fd_cmd, buf, 10) < 0) perror("Error reading from cmd fifo (master)");
+  sscanf(buf, "%d", &pid_cmd);
+  sleep(1);
+  close(fd_cmd);
+
   pid_t pid_mx = spawn("./bin/motorx", arg_list_motorx);
   if (pid_mx < 0)
     printf("Error spawning motorx");
@@ -104,12 +127,10 @@ int main()
   pid_t pid_world = spawn("./bin/world", arg_list_world);
   if (pid_world < 0)
     printf("Error spawning world");
-    pid_t pid_cmd = spawn("/usr/bin/konsole", arg_list_command);
-  if (pid_cmd < 0)
-    printf("Error spawning command");
 
-  // printf("PID motor x: %d\n", pid_mx);
-  // printf("PID motor z: %d\n", pid_mz);
+  printf("PID motor x: %d\n", pid_mx);
+  printf("PID motor z: %d\n", pid_mz);
+  printf("PID cmd: %d\n", pid_cmd);
 
   // Add the motors pids as arguments for inspection console:
   char buf1[10], buf2[10], buf3[10];
@@ -120,7 +141,12 @@ int main()
 
   pid_t pid_insp = spawn("/usr/bin/konsole", arg_list_inspection);
   if (pid_insp < 0)
-    printf("Error spawning inspection");  
+    printf("Error spawning inspection");
+
+  // Like the command process, pid_insp does not contain the PID of
+  // the inspection console, but the PID of the konsole. However, in
+  // this case it does not matter as the PID is only used to send
+  // termination signal that gets resent to all child processes of the konsole.
 
   // ---------------------------------------------------------------------------
   //                        PERFORM WATCHDOG DUTIES
@@ -135,7 +161,7 @@ int main()
   tim.tv_nsec = DT * 1000;
 
   // Give some time for processes to start:
-  sleep(4);
+  sleep(10);
 
   // Main loop:
   while (1)
@@ -144,7 +170,7 @@ int main()
     pid_t wins = waitpid(pid_insp, &status, WNOHANG);
 
     if (wcmd > 0 && wins > 0)
-      break; // Both processes finished --> exit loop
+      break;      // Both processes finished --> exit loop
 
     // Finish routine:
     if (finished)
@@ -159,7 +185,7 @@ int main()
 
     if (directory == NULL)
     {
-      printf("Error opening directory.\n");
+      perror("Error opening directory");
       continue;
     }
 
@@ -179,6 +205,9 @@ int main()
         inactivity_times[index++] = in_time;
       }
     }
+
+    if (closedir(directory) < 0)
+      perror("Error closing directory");
 
     // Check for inactivity:
     finished = 1;

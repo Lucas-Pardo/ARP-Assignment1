@@ -1,12 +1,16 @@
-[11:45:02]: Error reading from worldx-ins fifo: 4.
-[11:45:02]: Error reading from worldz-ins fifo: 4.
-[11:45:02]: Error reading from worldx-ins fifo: 4.
-[11:45:02]: Error reading from worldz-ins fifo: 4.
-[11:45:02]: Error reading from worldx-ins fifo: 4.
-[11:45:03]: Error reading from worldz-ins fifo: 4.
-[11:45:03]: Error reading from worldx-ins fifo: 4.
-[11:45:03]: Error reading from worldz-ins fifo: 4.
-[11:45:03]: Error reading from worldx-ins fifo: 4.
-[11:45:26]: Pressed RESET button.
-[11:45:26]: Error sending signal to cmd (ins): 3.
-[11:45:33]: Exited succesfully.
+[13:48:17]: Error reading from worldx-ins fifo: 4.
+[13:48:37]: Pressed RESET button.
+[13:48:54]: Pressed STOP button.
+[13:48:56]: Pressed RESET button.
+[13:48:56]: Pressed STOP button.
+[13:48:58]: Pressed RESET button.
+[13:49:14]: Pressed RESET button.
+[13:49:18]: Pressed STOP button.
+[13:49:18]: Pressed STOP button.
+[13:49:19]: Pressed RESET button.
+[13:49:30]: Pressed STOP button.
+[13:49:31]: Pressed RESET button.
+[13:49:31]: Pressed RESET button.
+[13:49:32]: Pressed RESET button.
+[13:49:32]: Pressed RESET button.
+[13:49:36]: Exited succesfully.

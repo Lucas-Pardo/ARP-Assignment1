@@ -42,6 +42,19 @@ int write_log(int fd_log, char *msg, int lmsg)
 int main(int argc, char const *argv[])
 {
 
+    // Send PID to master:
+    pid_t pid = getpid();
+    char *master_fifo = "./tmp/cmd_pid";
+    mkfifo(master_fifo, 0666);
+    int fd_master = open(master_fifo, O_WRONLY);
+    if (fd_master < 0 && errno != EINTR)
+        perror("Error opening cmd-master fifo");
+    char buf[10];
+    sprintf(buf, "%d", pid);
+    if (write(fd_master, buf, 10) < 0) perror("Error writing to master fifo (cmd)");
+    sleep(2);
+    close(fd_master);
+
     // Log file:
     int fd_log = creat("./logs/cmd.txt", 0666);
     char log_msg[64];

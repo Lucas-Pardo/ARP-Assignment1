@@ -61,7 +61,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/bin/inspection",
-            "args": [],
+            "args": ["19726", "19727", "19729"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "environment": [],
