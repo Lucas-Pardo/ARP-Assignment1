@@ -89,4 +89,4 @@ Apart from the already present **Stop** `S` and **Reset** `R` buttons, we have i
 
 ## Known Issues:
 
-- Upon pressing the exit button (in the inspection console) "broken pipe" errors are produced in `motorx`, `motorz` and `world` which are actually recorded in their corresponding log files. This is most likely caused due to the long time between the termination of the consoles and these other processes, giving them enough time to try to read from closed pipes. This error is not present when processes are terminated due to inactivity for instance. These errors are handled through the handling of the SIGPIPE signal produced.
+- After pressing the exit button (in the inspection console) "broken pipe" errors are produced in `motorx`, `motorz` and `world` which are actually recorded in their corresponding log files. This is most likely caused due to the long time between the termination of the consoles and these other processes, giving them enough time to try to read from closed pipes. This error is not present when processes are terminated due to inactivity for instance. These errors are handled through the handling of the SIGPIPE signal produced.
