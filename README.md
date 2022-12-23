@@ -13,20 +13,25 @@ sudo apt-get install libncurses-dev
 
 ## Compiling and running the code
 The Command and Inspection processes depend on the ncurses library, which needs to be linked during the compilation step. Furthermore, the Inspection process also uses the mathematical library for some additional computation. Therefore the steps to compile are the following:
-1. for the **Inspection process**:
+1. For the **Inspection process**:
 	```console
 	gcc src/inspection_console.c -lncurses -lm -o bin/inspection
 	```
-2. for the **Command process**:
+2. For the **Command process**:
 	```console
 	gcc src/command_console.c -lncurses -o bin/command
 	```
-3. for the **Master process**:
+3. Other processes:
 	```console
-	gcc src/master.c -o bin/master
+	gcc src/*.c -o bin/*
 	```
+	
+We also provide the shell script `compile.sh` which compiles all processes to the `./bin/` folder. It can be run by writing:
+```console
+./compile.sh
+```
 
-After compiling, **assuming you have Konsole installed in your system** as per the professor's indications, you can **simply run the Master executable**, which will be responsible of spawning the two GUIs:
+After compiling, **assuming you have Konsole installed in your system** as per the professor's indications, you can **simply run the Master executable**, which will be responsible of spawning all other processes:
 ```console
 ./bin/master
 ```
@@ -35,7 +40,7 @@ After compiling, **assuming you have Konsole installed in your system** as per t
 
 Should you experience some weird behavior after launching the application (buttons not spawning inside the GUI or graphical assets misaligned) simply try to resize the terminal window, it should solve the bug.
 
-In case of any problems which may occur the first time running the master process, closing the consoles and terminating the process, and rerunning `./bin/master` will solve the issues.
+In case of any problems which may occur the first time running the master process, closing the consoles and terminating the process, and rerunning `./bin/master` will most likely solve the issues (sometimes need to rerun it twice).
 
 ## A note about the consoles:
 
