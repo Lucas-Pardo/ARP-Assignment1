@@ -10,7 +10,7 @@
 #include <errno.h>
 #include <signal.h>
 
-#define KILLTIME 20 * 1e6 // Time in usec
+#define KILLTIME 60 * 1e6 // Time in usec
 #define SIZE_MSG 3
 #define DT 25000 // Time in usec (40 Hz)
 
