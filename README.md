@@ -3,7 +3,7 @@ Base project structure for the first *Advanced and Robot Programming* (ARP) assi
 The project provides the basic functionalities for the **Command** and **Inspection processes**, both of which are implemented through the *ncurses library* as simple GUIs. In particular, the repository is organized as follows:
 - The `src` folder contains the source code for the Command, Inspection and Master processes.
 - The `include` folder contains all the data structures and methods used within the ncurses framework to build the two GUIs. Unless you want to expand the graphical capabilities of the UIs (which requires understanding how ncurses works), you can ignore the content of this folder, as it already provides you with all the necessary functionalities.
-- The `bin` folder is where the executable files are expected to be after compilation
+- The `bin` folder is where the executable files are expected to be after compilation.
 
 ## ncurses installation
 To install the ncurses library, simply open a terminal and type the following command:
@@ -25,7 +25,7 @@ The Command and Inspection processes depend on the ncurses library, which needs 
 	```console
 	gcc src/master.c -o bin/master
 	```
-	
+
 After compiling, **assuming you have Konsole installed in your system** as per the professor's indications, you can **simply run the Master executable**, which will be responsible of spawning the two GUIs:
 ```console
 ./bin/master
@@ -36,7 +36,6 @@ After compiling, **assuming you have Konsole installed in your system** as per t
 Should you experience some weird behavior after launching the application (buttons not spawning inside the GUI or graphical assets misaligned) simply try to resize the terminal window, it should solve the bug.
 
 In case of any problems which may occur the first time running the master process, closing the consoles and terminating the process, and rerunning `./bin/master` will solve the issues.
-
 
 ## A note about the consoles:
 
@@ -49,7 +48,41 @@ Apart from the already present **Stop** `S` and **Reset** `R` buttons, we have i
 
 ## Branch Info:
 
-- main: The main code presented as assignment. Either one of the two working implementations present in the branches `exp` and `version2` could be chosen. Currently, we decided to merge branch `?` into main.
-- exp: In this version, the `watchdog` process is responsible for writing the status messages as well as stringent logging.
-- version2: In this version, the `master` process also performs `watchdog` duties.
+- **main**: The main code presented as assignment. Either one of the two working implementations present in the branches `exp` and `version2` could be chosen. Currently, we decided to merge branch `?` into main.
+- **exp**: In this version, the `watchdog` process is responsible for writing the status messages as well as stringent logging.
+- **version2**: In this version, the `master` process also performs `watchdog` duties.
+All comms bw processes done with named pipes
+
+## Known Issues:
+Broken pipe issue
+
+## Brief Explanations about the processes
+- Master: 
+	- Spawns the motor processes `motorx` and `motorz`
+	- Spawns the `inspection` console, which takes the pid's of the motor processes
+	- Spawns the `command` console
+	- Spawns the `watchdog` which takes the pid's of the inspection and command console processes
+	- Spawns the `world` process
+	- Performs `watchdog` duties
+	- Waits for the termination of the 'konsoles' and terminates the programs
+
+- Command Console:
+	- Creates the FIFOs corresponding to `motorx` and `motorz`
+	- Used to pass commands for controlling the speeds of the two motors or stopping them individually using the two defined fifos
+	- Logs the status messages (user inputs) and and any errors in the log file
+
+- Inspection Console:
+	- 
+	- 
+
+- MotorX:
+	- 
+
+- MotorY:
+	- 
+
+- World:
+	- 
+
+
 
