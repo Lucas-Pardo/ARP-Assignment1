@@ -72,7 +72,7 @@ Apart from the already present **Stop** `S` and **Reset** `R` buttons, we have i
 	- Spawns the motor processes `motorx` and `motorz`.
 	- Spawns the `world` process.
 	- Spawns the `inspection` console, which takes the pid's of the motor processes.
-	- Performs `watchdog` duties.
+	- Performs `watchdog` duties: keeps track of inactivity time for every process looking at the `mtime` property of all log files.
 	- Waits for the termination of the 'konsoles' and terminates the programs.
 
 - Command Console:
