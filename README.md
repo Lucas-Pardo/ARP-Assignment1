@@ -51,38 +51,41 @@ Apart from the already present **Stop** `S` and **Reset** `R` buttons, we have i
 - **main**: The main code presented as assignment. Either one of the two working implementations present in the branches `exp` and `version2` could be chosen. Currently, we decided to merge branch `?` into main.
 - **exp**: In this version, the `watchdog` process is responsible for writing the status messages as well as stringent logging.
 - **version2**: In this version, the `master` process also performs `watchdog` duties.
-All comms bw processes done with named pipes
 
-## Known Issues:
-Broken pipe issue
+
+## Programming Paradigms
+
+- All Inter Process Communications are done using named pipes (FIFOs).
+- Most processes also use `select` function to monitor `pipes` and read only when data is avaialable in them.
+- We use `sigaction` POSIX function to perform all signal handling for all the pre-existing or user defined signals.
+
 
 ## Brief Explanations about the processes
+
 - Master: 
 	- Spawns the motor processes `motorx` and `motorz`
 	- Spawns the `inspection` console, which takes the pid's of the motor processes
 	- Spawns the `command` console
-	- Spawns the `watchdog` which takes the pid's of the inspection and command console processes
 	- Spawns the `world` process
 	- Performs `watchdog` duties
 	- Waits for the termination of the 'konsoles' and terminates the programs
 
 - Command Console:
-	- Creates the FIFOs corresponding to `motorx` and `motorz`
-	- Used to pass commands for controlling the speeds of the two motors or stopping them individually using the two defined fifos
+	- Sends the user input for controlling motors to both motors, `motorx` and `motorz`.
 	- Logs the status messages (user inputs) and and any errors in the log file
 
 - Inspection Console:
-	- 
-	- 
+	- _
 
 - MotorX:
-	- 
+	- _
 
-- MotorY:
-	- 
+- MotorZ:
+	- _
 
 - World:
-	- 
+	- _
 
 
-
+## Known Issues:
+Broken pipe issue
