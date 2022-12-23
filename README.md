@@ -75,16 +75,19 @@ Apart from the already present **Stop** `S` and **Reset** `R` buttons, we have i
 	- Logs the status messages (user inputs) and and any errors in the log file
 
 - Inspection Console:
-	- _
+	- Keeps track of the 3 buttons, `Stop`, `Reset` and `X` (EXIT) buttons.
+	- Sends the coresponding signal to both motors and cmd fifo w.r.t. the button pressed
 
-- MotorX:
-	- _
-
-- MotorZ:
-	- _
+- MotorX and MotorZ:
+	- Set (or Resets) the desired velocities of the hoist (increasing or decreasing by a set buffer) received from `cmd` pipe
+	- Send the desired `x` and `z` positions to the world process using `world-mx` or `world-mz` fifos
+	- Keep track of inactivity (time elapsed since no user input)
+	- Update corresponding log files
 
 - World:
-	- _
+	- Generates (simulates) a random error within in a defined range (5%)
+	- Receives the `x` and `z` position of the hoist and writes them to inspection console
+	- Logs the status or error messages
 
 
 ## Known Issues:
