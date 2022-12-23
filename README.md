@@ -48,9 +48,9 @@ Apart from the already present **Stop** `S` and **Reset** `R` buttons, we have i
 
 ## Branch Info:
 
-- **main**: The main code presented as assignment. Either one of the two working implementations present in the branches `exp` and `version2` could be chosen. Currently, we decided to merge branch `?` into main.
-- **exp**: In this version, the `watchdog` process is responsible for writing the status messages as well as stringent logging.
-- **version2**: In this version, the `master` process also performs `watchdog` duties.
+- **main**: In this version, the `master` process also performs `watchdog` duties. Watchdog uses the log files information (mtime) to keep track of the inactivity of the processes
+- **exp**: Experimental branch, where changes are made before merging to other branches. Right now it should be the same as **version2**.
+- **version2**: In this version, `master` only spawns the processes and the watchdog is a separate process. The watchdog receives periodically "alive" messages from other processes and keeps track of their inactivity using the lack of such messages. 
 
 
 ## Programming Paradigms
@@ -63,31 +63,32 @@ Apart from the already present **Stop** `S` and **Reset** `R` buttons, we have i
 ## Brief Explanations about the processes
 
 - Master: 
-	- Spawns the `command` console 
-	- Spawns the motor processes `motorx` and `motorz`
-	- Spawns the `world` process
-	- Spawns the `inspection` console, which takes the pid's of the motor processes
-	- Performs `watchdog` duties
-	- Waits for the termination of the 'konsoles' and terminates the programs
+	- Spawns the `command` console.
+	- Spawns the motor processes `motorx` and `motorz`.
+	- Spawns the `world` process.
+	- Spawns the `inspection` console, which takes the pid's of the motor processes.
+	- Performs `watchdog` duties.
+	- Waits for the termination of the 'konsoles' and terminates the programs.
 
 - Command Console:
 	- Sends the user input for controlling motors to both motors, `motorx` and `motorz`.
-	- Logs the status messages (user inputs) and and any errors in the log file
+	- Logs the status messages (user inputs) and any errors in the log file.
 
 - Inspection Console:
 	- Keeps track of the 3 buttons, `Stop`, `Reset` and `X` (EXIT) buttons.
-	- Sends the coresponding signal to both motors and cmd fifo w.r.t. the button pressed
+	- Sends the coresponding signal to both motors and cmd.
+	- Logs the button pressed (user input) and any errors in the log file.
 
 - MotorX and MotorZ:
-	- Set (or Resets) the desired velocities of the hoist (increasing or decreasing by a set buffer) received from `cmd` pipe
-	- Send the desired `x` and `z` positions to the world process using `world-mx` or `world-mz` fifos
-	- Keep track of inactivity (time elapsed since no user input)
-	- Update corresponding log files
+	- Set (or Resets) the desired velocities of the hoist (increasing or decreasing by a set buffer) received from `cmd` pipe.
+	- Send the desired `x` and `z` positions to the world process using fifos.
+	- logs the desired position and any errors in the log file.
 
 - World:
-	- Generates (simulates) a random error within in a defined range (5%)
-	- Receives the `x` and `z` position of the hoist and writes them to inspection console
-	- Logs the status or error messages
+	- Receives the `x` and `z` position of the hoist (from the motors)
+	- Generates (simulates) a random error within a defined range (5%).
+	- Sends generated positions to the inspection console.
+	- Logs the received position and the generated one, as well as any errors, in the log file.
 
 
 ## Known Issues:
