@@ -88,4 +88,5 @@ Apart from the already present **Stop** `S` and **Reset** `R` buttons, we have i
 
 
 ## Known Issues:
-Broken pipe issue
+
+- Upon pressing the Reset button on the inspection console, the command console was no longer accepting the commands to increase or decrease the velocity of the hoist. Moreover, the errors or status messages corresponding to `motorx`, `motory` and `world` were no longer getting logged. The issue was that the named pipe is broken / shut down upon doing so (no longer connected), and has to be handled and logged explicitly using `sigaction`.
