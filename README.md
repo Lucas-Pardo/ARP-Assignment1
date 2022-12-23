@@ -56,17 +56,17 @@ Apart from the already present **Stop** `S` and **Reset** `R` buttons, we have i
 ## Programming Paradigms
 
 - All Inter Process Communications are done using named pipes (FIFOs).
-- Most processes also use `select` function to monitor `pipes` and read only when data is avaialable in them.
-- We use `sigaction` POSIX function to perform all signal handling for all the pre-existing or user defined signals.
+- Most processes also use the `select` function to monitor `pipes` and read only when data is avaialable in them.
+- We use the `sigaction` POSIX function to perform all signal handling for all the pre-existing and user defined signals.
 
 
 ## Brief Explanations about the processes
 
 - Master: 
+	- Spawns the `command` console 
 	- Spawns the motor processes `motorx` and `motorz`
-	- Spawns the `inspection` console, which takes the pid's of the motor processes
-	- Spawns the `command` console
 	- Spawns the `world` process
+	- Spawns the `inspection` console, which takes the pid's of the motor processes
 	- Performs `watchdog` duties
 	- Waits for the termination of the 'konsoles' and terminates the programs
 
@@ -89,4 +89,4 @@ Apart from the already present **Stop** `S` and **Reset** `R` buttons, we have i
 
 ## Known Issues:
 
-- Upon pressing the Reset button on the inspection console, the command console was no longer accepting the commands to increase or decrease the velocity of the hoist. Moreover, the errors or status messages corresponding to `motorx`, `motory` and `world` were no longer getting logged. The issue was that the named pipe is broken / shut down upon doing so (no longer connected), and has to be handled and logged explicitly using `sigaction`.
+- Upon pressing the exit button (in the inspection console) "broken pipe" errors are produced in `motorx`, `motorz` and `world` which are actually recorded in their corresponding log files. This is most likely caused due to the long time between the termination of the consoles and these other processes, giving them enough time to try to read from closed pipes. This error is not present when processes are terminated due to inactivity for instance. These errors are handled through the handling of the SIGPIPE signal produced.
