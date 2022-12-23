@@ -35,6 +35,8 @@ After compiling, **assuming you have Konsole installed in your system** as per t
 
 Should you experience some weird behavior after launching the application (buttons not spawning inside the GUI or graphical assets misaligned) simply try to resize the terminal window, it should solve the bug.
 
+In case of any problems which may occur the first time running the master process, closing the consoles and terminating the process, and rerunning `./bin/master` will solve the issues.
+
 
 ## A note about the consoles:
 
@@ -42,8 +44,12 @@ The two consoles: Inspection and Command console will be controlling the movemen
 
 Apart from the already present **Stop** `S` and **Reset** `R` buttons, we have implemented an extra **exit** button `X`, which can be used to terminate all the processes and close the consoles.
 
+![Command Console](images/command_console.png)
+![Inspection Console](images/inspection_console.png)
+
 ## Branch Info:
 
-- master: _
-- exp: _
-- version2: _
+- main: The main code presented as assignment. Either one of the two working implementations present in the branches `exp` and `version2` could be chosen. Currently, we decided to merge branch `?` into main.
+- exp: In this version, the `watchdog` process is responsible for writing the status messages as well as stringent logging.
+- version2: In this version, the `master` process also performs `watchdog` duties.
+

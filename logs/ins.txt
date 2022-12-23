@@ -1,4 +1,0 @@
-[01:36:31]: Pressed RESET button.
-[01:36:41]: Pressed STOP button.
-[01:36:44]: Pressed STOP button.
-[01:36:52]: Exited succesfully.
