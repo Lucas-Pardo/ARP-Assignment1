@@ -10,7 +10,7 @@
 #include <errno.h>
 #include <fcntl.h>
 
-#define INTIME 20 // Time of inactivity in seconds
+#define INTIME 60 // Time of inactivity in seconds
 #define DT 25000   // Time in usec (40 Hz)
 
 int finished = 0;
